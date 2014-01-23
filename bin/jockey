@@ -1,0 +1,333 @@
+#!/bin/bash
+source $(dirname $0)/../lib/header
+import pass
+import vbox
+
+### defaults
+jockey_root="${gdn}/../space"
+jockey_root=$(cd ${jockey_root}; pwd)
+
+default=centos64
+inventory=${JOCKEY_HOSTS:-${jockey_root}/hosts}
+if [ ! -r ${inventory} ] ; then
+  echo "Error: Inventory not found"
+  exit 1
+fi
+source ${inventory}
+
+### path
+usrlocal=/usr
+if [ ! -z "${OSTYPE/darwin/}" ]; then
+  usrlocal=/usr/local
+fi
+
+### dnsmasq
+masq_conf=${jockey_root}/masq.conf
+masq_root=${jockey_root}/boot
+ipxe_root=${masq_root}/pxelinux.cfg
+masq_bin=$(which dnsmasq)
+if [ -z "${masq_bin}" ] ; then
+  masq_bin=${usrlocal}/sbin/dnsmasq
+fi
+
+### http server (nginx)
+http_conf=${jockey_root}/http.conf
+http_server=${boot_server}
+http_port=8080
+http_listen=${http_server}:${http_port}
+http_root=${masq_root}
+http_bin=$(which nginx)
+if [ -z "${http_bin}" ] ; then
+  http_bin=${usrlocal}/sbin/nginx
+fi
+
+### traps
+function jockey/masq/exit() {
+  if [ -r ${masq_conf} ] ; then
+    rm -f ${masq_conf}
+  fi
+  exit 1
+}
+
+function jockey/http/exit() {
+  if [ -r ${http_conf} ] ; then
+    rm -f ${http_conf}
+  fi
+  exit 1
+}
+
+# TBD
+function vbox/mac() {
+  local _mac=$*
+  if [ "${1:0:1}" = "@" ] ; then
+    local _host="${1:1}"
+    _mac=$(VBoxManage showvminfo "${_host}" | \
+    grep 'NIC 1:' | \
+    sed 's/.*MAC:\ *//' | \
+    sed 's/,.*//' | \
+    sed 's/\(.\{2\}\)/&-/g;s/-$//')
+  fi
+  echo "${_mac}"
+}
+
+### args
+cmd=${1:-test}
+shift
+arg=$1
+shift
+
+### main
+case ${cmd} in
+  #/* List kickstarts
+  #// ls|list
+  ls|list)
+    for i in space/kickstart.*; do
+      echo ${i##*kickstart.}
+    done
+  ;;
+
+  #/* Generates a password
+  #// pass|netpass
+  pass|netpass)
+    pass/${cmd}
+  ;;
+
+  #/* Show password for the VM:
+  #// getpass <MAC>
+  #//         @<HOST>
+  getpass|password)
+    mac=$(vbox/mac ${arg} | tr [A-Z] [a-z])
+    pass="${jockey_root}/${mac}.pass"
+    if test -r "${pass}" ; then
+      echo "${arg} [${mac}]: $(cat ${pass})"
+    fi
+  ;;
+
+  ls)
+    echo ""
+    echo "Available systems:"
+    for i in ${jockey_root}/kickstart.* ; do
+      i=$(basename ${i})
+      echo "  ${i##kickstart.}"
+    done
+    echo ""
+  ;;
+
+  #/* Kickstart a VM with the following parameters
+  #// Run jockey ls for system list
+  #// kick <SYS> <MAC> <IP> <HOSTNAME>
+  #//            @<HOST>
+  kick)
+    ### args
+    system=${arg:-${default}}
+    mac=${1}
+    if [ -z "${mac}" ] ; then exit 1; fi
+    mac=$(vbox/mac ${mac})
+    shift
+    addr=${1:-10.1.1.1}
+    shift
+    name=${1:-core-01}
+    shift
+
+    ### password
+    pass=${1:-$(pass/pass)}
+    root_pass=$(openssl passwd -1 "${pass}")
+    ks=$(echo "${mac}" | sed s/:/-/g | tr '[:upper:]' '[:lower:]')
+    echo "${pass}" > ${jockey_root}/${ks}.pass
+
+    echo ""
+    echo "Kickstart: ${system}"
+    echo "Password: ${pass}"
+    echo ""
+
+    ### kickstart
+    template="${jockey_root}/kickstart.${system}"
+    os_kickstart="${http_root}/${ks}.ks"
+
+    ### esxi
+    if [ "${system}" = "esxi" ] ; then
+      cat "${template}" | \
+      awk -v p=${pass} '{gsub("ROOT_PASSWORD",p); print}' \
+      > "${os_kickstart}"
+    else
+    cat "${template}" | \
+      awk -v p=${root_pass} \
+          -v q=${pass} \
+          -v l=${http_listen} \
+          -v i=${interface} \
+          -v a=${addr} \
+          -v n=${name} \
+          -v t=${ntp_server} \
+          -v g=${gateway} \
+      '{gsub("ROOT_PASSWORD_PLAIN",q);
+        gsub("ROOT_PASSWORD",p);
+        gsub("HTTP_LISTEN",l);
+        gsub("SYSTEM_NAME",n);
+        gsub("SYSTEM_ADDR",a);
+        gsub("NTP_SERVER",t);
+        gsub("GATEWAY",g);
+        gsub("INTERFACE",i); print}' \
+      > "${os_kickstart}"
+    fi
+
+    ### pxelinux
+    http_kickstart="${http_listen}/${ks}.ks"
+    ipxe_kickstart="${ipxe_root}/01-${ks}"
+    template="${jockey_root}/boot/kickstart"
+
+    cat "${template}" | \
+    awk -v k=${http_kickstart} -v d=${system} -v i=${interface} \
+    '{gsub("KICKSTART",k); gsub("_DEFAULT",d); gsub("INTERFACE",i); print}' \
+    > "${ipxe_kickstart}"
+
+    ### esxi boot
+    if [ "${system}" = "esxi" ] ; then
+      template="${jockey_root}/boot/esxi/repo/BOOT.CFG"
+      esxi_kickstart="${jockey_root}/boot/esxi/boot.cfg"
+      cat "${template}" | \
+      sed "s/\//repo\//g" | \
+      awk -v l="http://${http_kickstart}" '{gsub("^kernelopt.*","kernelopt=ks=" l);print}' \
+      > "${esxi_kickstart}"
+    fi
+  ;;
+
+  #/* Kickstart a VM with the following parameters
+  #// <KEY> is for CoreOS SSH pubkey
+  #// ipxe|coreos <SYS> <MAC> <KEY>
+  #//                   @<HOST>
+  ipxe|coreos)
+    ### args
+    system=${arg:-local}
+    mac=${1}
+    key=${2}
+
+    if [ -z "${mac}" ] ; then exit 1; fi
+    mac=$(vbox/mac ${mac})
+    ks=$(echo "${mac}" | sed s/:/-/g | tr '[:upper:]' '[:lower:]')
+
+    ### pxelinux
+    http_kickstart="${http_listen}/${ks}.ks"
+    ipxe_kickstart="${ipxe_root}/01-${ks}"
+    template="${jockey_root}/boot/kickstart"
+
+    echo ""
+    echo "Kickstart: ${system}"
+    echo "Mac: ${mac}"
+    echo ""
+
+    # http://coreos.com/docs/pxe/
+    if [ "${cmd}" = "coreos" ] ; then
+      key=$(cat ${key})
+      cat "${template}" | \
+      awk -v s="${key}" -v d=${system} \
+      '{gsub("SSHKEY",s); gsub("_DEFAULT",d); print}' \
+      > "${ipxe_kickstart}"
+    else
+      cat "${template}" | \
+      awk -v k=${http_kickstart} -v d=${system} -v i=${interface} \
+      '{gsub("KICKSTART",k); gsub("_DEFAULT",d); gsub("INTERFACE",i); print}' \
+      > "${ipxe_kickstart}"
+    fi
+  ;;
+
+  #/* Dump traffic on interface <IFC>
+  #// dump <IFC>
+  dump)
+    tcpdump -i ${arg} port bootps
+  ;;
+
+  #/* Start http server for kickstart files
+  #// http
+  http)
+    trap jockey/http/exit INT TERM EXIT
+    cat ${jockey_root}/http | \
+    awk -v p=${http_root} \
+        -v l=${http_listen} '{
+      gsub("HTTP_ROOT",p);
+      gsub("HTTP_LISTEN",l); print}' \
+    > ${http_conf}
+    echo "HTTP server started on ${http_listen}"
+    echo "Press Ctrl+C to exit"
+    ${http_bin} -c ${http_conf}
+  ;;
+
+  #/* Start server for TP-link WRT firmware debrick
+  #// wrt
+  wrt)
+    boot_server=192.168.0.5
+
+    cat ${jockey_root}/wrt | \
+    awk -v p=${masq_root} \
+        -v l=${boot_server} '{
+      gsub("DNSMASQ_LISTEN",l);
+      gsub("DNSMASQ_ROOT",p); print}' \
+    > ${masq_conf}
+
+    echo "DNSmasq server started on ${boot_server}"
+    echo "Press Ctrl+C to exit"
+    sudo ${masq_bin} -d -C ${masq_conf}
+  ;;
+
+  #/* Start bootp server
+  #// masq|boot
+  masq|boot)
+    trap jockey/masq/exit INT TERM EXIT
+    # interfaces="interface=${boot_interface}"
+    addresses="listen-address=${boot_server}"
+
+    ### gateway and router
+    _router="dhcp-option=3"
+    _dns=""
+    if ! test -z "${gateway}" ; then
+      _router="dhcp-option=option:router,${gateway}"
+      _dns="dhcp-option=6,${gateway}"
+    fi
+
+    cat ${jockey_root}/masq | \
+    awk -v a=${addresses} \
+        -v p=${masq_root} \
+        -v r=${_router} \
+        -v d=${_dns} \
+        -v w=${dhcp_range} \
+        -v l=${boot_server} '{
+      gsub("#LISTEN-ADDRESSES",a);
+      gsub("#ROUTER",r);
+      gsub("#DNS",d);
+      gsub("DHCP_RANGE",w);
+      gsub("DNSMASQ_LISTEN",l);
+      gsub("DNSMASQ_ROOT",p); print}' \
+    > ${masq_conf}
+
+    echo "DNSmasq server started on ${boot_server}"
+    echo "Press Ctrl+C to exit"
+    sudo ${masq_bin} -d -C ${masq_conf}
+  ;;
+
+  #/* Ipmi tool wrapper
+  #// ipmi <CMDS*>
+  ipmi)
+    sub=${arg}
+    shift
+    arg=$1
+    ipmi=${jockey_root}/ipmi.conf
+    if [ -r ${ipmi} ] ; then
+      source ${ipmi}
+    fi
+
+    case $sub in
+      user)
+        shift
+        echo "user=${arg};pass=${1:-admin}" > ${ipmi}
+      ;;
+      tool)
+        ip=${arg}
+        shift
+        ipmitool -I lanplus -U ${user} -P ${pass} -H ${ip} $*
+      ;;
+    esac
+  ;;
+
+  *)
+    help $0
+  ;;
+esac

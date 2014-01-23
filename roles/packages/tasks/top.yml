@@ -1,0 +1,41 @@
+
+- name: Install top packages
+  yum: name={{item}}
+       state=installed
+  with_items:
+    - htop
+    - tcptrack
+    - powertop
+    - nethogs
+    - jnettop
+    - iptstate
+    - iftop
+    - dnstop
+    - atop
+    - iotop
+    - sysstat
+    - ftop
+  when: ansible_os_family == "RedHat"
+  tags:
+    - packages
+
+- name: Install top packages
+  apt: name={{item}}
+       state=installed
+  with_items:
+    - htop
+    - tcptrack
+    - powertop
+    - nethogs
+    - jnettop
+    - iptstate
+    - iftop
+    - dnstop
+    - atop
+    - iotop
+    - sysstat
+    - hatop
+    - ntop
+  when: ansible_os_family == "Debian"
+  tags:
+    - packages

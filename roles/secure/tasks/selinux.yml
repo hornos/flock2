@@ -1,0 +1,31 @@
+
+- name: Install selinux packages
+  yum: name={{item}}
+       state=installed
+  with_items:
+    - libsemanage
+    - setools-libs-python
+    - policycoreutils-python
+    - libselinux-python
+    - setools
+  when: ansible_os_family == "RedHat"
+  tags:
+    - packages
+
+- name: Set selinux permissive policy
+  lineinfile: dest=/etc/selinux/config
+            regexp='^SELINUX='
+            line='SELINUX=permissive'
+            backup=yes
+  when: ansible_os_family == "RedHat"
+  tags:
+    - policy
+
+- name: Disable selinux
+  lineinfile: dest=/etc/selinux/config
+            regexp='^SELINUX='
+            line='SELINUX=disabled'
+            backup=yes
+  when: ansible_os_family == "RedHat"
+  tags:
+    - policy

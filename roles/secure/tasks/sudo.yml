@@ -1,0 +1,9 @@
+
+- name: Disable require tty
+  lineinfile: dest=/etc/sudoers
+              state=present
+              regexp="Defaults.*requiretty"
+              line="#Defaults requiretty"
+              backup=yes
+  tags:
+    - config

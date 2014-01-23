@@ -1,0 +1,61 @@
+
+- name: Secure SSH server
+  template: src=sshd_config.j2
+            dest=/etc/ssh/sshd_config
+            owner=root
+            group=root
+            mode=0600
+            backup=yes
+  notify:
+    - Restart sshd
+  tags:
+    - config
+
+- name: FIX sftp subsystem in sshd_config for Debian
+  lineinfile: dest=/etc/ssh/sshd_config
+              regexp='^Subsystem sftp'
+              line='Subsystem sftp /usr/lib/openssh/sftp-server'
+  when: ansible_os_family == "Debian"
+  notify:
+    - Restart sshd
+  tags:
+    - config
+
+- name: Create .ssh directories
+  file: path=/{{item}}/.ssh
+        owner={{item}}
+        group={{item}}
+        mode=700
+        state=directory
+  with_items:
+    - root
+    - sysop
+  tags:
+    - key
+
+- name: Install nopass key
+  copy: src=nopass
+        dest=/root/.ssh/id_rsa
+        owner=root
+        group=root
+        mode=600
+  tags:
+    - key
+
+- name: Install sysop nopass key
+  copy: src=nopass
+        dest=/home/sysop/.ssh/id_rsa
+        owner=sysop
+        group=sysop
+        mode=600
+  tags:
+    - key
+
+- name: Install nopass public key
+  authorized_key: user={{item}}
+                  key="{{lookup('file', 'nopass.pub')}}"
+  with_items:
+    - root
+    - sysop
+  tags:
+    - key

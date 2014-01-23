@@ -1,0 +1,48 @@
+### REDHAT
+- name: Install packages
+  yum: name={{item}}
+       state=installed
+  with_items:
+    - rng-tools
+  when: ansible_os_family == "RedHat"
+  tags:
+    - packages
+
+- name: Configure rng-tools
+  lineinfile: dest=/etc/sysconfig/rngd
+              state=present
+              regexp="^EXTRAOPTIONS"
+              line='EXTRAOPTIONS="-r /dev/urandom"'
+              backup=yes
+  when: ansible_os_family == "RedHat"
+  notify:
+    - Restart rngd
+  tags:
+    - config
+
+### DEBIAN
+- name: Install packages
+  apt: name={{item}}
+       state=installed
+  with_items:
+    - rng-tools
+  when: ansible_os_family == "Debian"
+  tags:
+    - packages
+
+- name: Configure rng-tools
+  lineinfile: dest=/etc/default/rng-tools
+              state=present
+              regexp="^HRNGDEVICE"
+              line='HRNGDEVICE="/dev/urandom"'
+              backup=yes
+  when: ansible_os_family == "Debian"
+  notify:
+    - Restart rngd
+  tags:
+    - config
+
+- name: Start rngd
+  service: name={{ service.rngd }}
+           state=started
+           enabled=yes

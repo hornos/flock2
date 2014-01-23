@@ -1,0 +1,70 @@
+
+- name: Install munge packages
+  yum: name={{item}}
+       state=installed
+  when: ansible_os_family == "RedHat"
+  with_items:
+    - munge
+  tags:
+    - packages
+
+- name: Install munge packages
+  apt: name={{item}}
+       state=latest
+  when: ansible_os_family == "Debian"
+  with_items:
+    - munge
+  tags:
+    - packages
+
+- name: Create users
+  user: name={{item}}
+        createhome=no
+  with_items:
+    - munge
+  tags:
+    - users
+
+# https://code.google.com/p/munge/wiki/InstallationGuide
+- name: Set munge user
+  lineinfile: dest=/etc/sysconfig/munge
+              regexp='^USER'
+              line='USER="munge"'
+  when: ansible_os_family == "RedHat"
+  tags:
+    - munge
+- name: Set munge permissions
+  file: path=/var/{{item}}/munge
+        owner=munge
+        group=munge
+        state=directory
+  with_items:
+    - run
+    - lib
+    - log
+  tags:
+    - munge
+
+- name: Set munge permissions /etc/munge
+  file: path=/etc/munge
+        owner=munge
+        group=munge
+        state=directory
+  tags:
+    - munge
+
+- name: Setup munge key
+  copy: src=munge.key
+        dest=/etc/munge/munge.key
+        owner=munge
+        group=munge
+        mode=0600
+  tags:
+    - munge
+
+- name: Start munge
+  service: name=munge
+           state=started
+           enabled=yes
+  tags:
+    - service

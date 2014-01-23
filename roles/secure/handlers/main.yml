@@ -1,0 +1,7 @@
+- name: Restart rngd
+  service: name={{ service.rngd }}
+           state=restarted
+
+- name: Restart sshd
+  service: name={{ service.sshd }}
+           state=restarted

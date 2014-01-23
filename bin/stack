@@ -1,0 +1,93 @@
+#!/bin/bash
+source $(dirname $0)/../lib/header
+import ostype
+import inifile
+import cs
+# import ansible
+
+### main
+cmd=${1:-help}
+shift
+
+
+### args
+# http://xmodulo.com/2013/05/how-to-parse-json-string-via-command-line-on-linux.html
+# 
+case ${cmd} in
+  #/* Generate Ansible inventory from CloudStack
+  #// ip address of the first NIC is used
+  #// inventory <NAME>
+  inventory)
+    name=${1:-test}
+    inventory="./inventory/${name}.ansible"
+
+    if readable "${inventory}" ; then
+      answer "Overwrite inventory?"
+      if failed $?; then $failure; fi
+    fi
+
+    count=$(cs/vmcount ${name})
+
+    # generate the inventory
+    echo "[${name}]" > ${inventory}
+    for i in $(seq -f "%02g" 1 ${count}); do
+      host=${name}-${i}
+      ip=$(cs/vmip ${host})
+      echo "${host} ansible_ssh_host=${ip} ansible_connection=paramiko" >> ${inventory}
+    done
+  ;;
+
+  #/* Mass deploy VMs
+  #// internal names are: <NAME>-<COUNT>
+  #// out <COUNT> <NAME>
+  #// <COUNT> = <count>[:<from>]
+  out)
+    count=${1:-1}
+    from=1
+    echo "$count" | grep ":" &>/dev/null
+    if succeed $? ; then
+      from=${count##*:}
+    fi
+    count=${count%%:*}
+
+    # echo $count $from
+    to=$((count+from-1))
+
+    name=${2:-test}
+    domain=${3}
+    read_ini "${CMONKEY_HOSTS}"
+
+    answer "Deploy ${count} VMs (count from ${from})?"
+    if failed $?; then $failure; fi
+
+    for i in $(seq -f "%02g" ${from} ${to}); do
+      # echo $i; continue
+      host=${name}-${i}
+      if test -n "${domain}" ; then
+        host=${host}.${domain}
+      fi
+
+      disk=""
+      if test -n "${INI__defaultvm__diskofferingid}" ; then
+        disk="diskofferingid=${INI__defaultvm__diskofferingid}"
+      fi
+
+      cs/vmdeploy "${host}" "${host}" "${INI__defaultvm__zoneid}" \
+                  "${INI__defaultvm__templateid}" \
+                  "${INI__defaultvm__serviceofferingid}" \
+                  "${INI__defaultvm__networkids}" \
+                  "${disk}"
+
+      if failed $? ; then
+        echo "Failed to deploy VM: ${host}"
+        exit 1
+      fi
+    done
+  ;;
+
+  #/* Help
+  #// help
+  *)
+    help $0
+  ;;
+esac

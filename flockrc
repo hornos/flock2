@@ -1,0 +1,113 @@
+# _______         _____  _______ _     _
+# |______ |      |     | |       |____/ 
+# |       |_____ |_____| |_____  |    \_
+#
+
+flock_root=$(cd $(dirname "${BASH_SOURCE}");pwd -P)
+PATH=${PATH}:${flock_root}/bin
+
+#
+# http://docs.ansible.com/intro.html
+#
+ansiblerc="${HOME}/ansible/hacking/env-setup"
+if test -r ${ansiblerc} ; then
+  source ${ansiblerc} &> /dev/null
+fi
+
+#
+# function wrappers
+#
+function flock2() {
+  if [ "$1" == "ls" ] ; then
+    if ! test -d ./inventory ; then
+      return 1
+    fi
+    if test -r ./inventory/${2}.ansible; then
+      cat ./inventory/${2}.ansible
+      return $?
+    fi
+    for i in ./inventory/*.ansible; do
+      i=$(basename $i)
+      echo ${i%%.ansible}
+    done
+    return $?
+  fi
+
+  if [ "$1" != "on" ] ; then
+    $(which flock2) $*
+    return $?
+  fi
+
+  shift
+  local _inventory=./inventory/${1:-hosts}.ansible
+  if test -f ${_inventory} ; then
+    _inventory=$(cd ./inventory;pwd)/${1:-hosts}.ansible
+    export ANSIBLE_HOSTS=${_inventory}
+  else
+    echo "Not found: ${_inventory}"
+  fi
+}
+
+function stack() {
+  if [ "$1" == "ls" ] ; then
+    if ! test -d ./inventory ; then
+      return 1
+    fi
+    if test -r ./inventory/${2}.cmonkey; then
+      cat ./inventory/${2}.cmonkey
+      return $?
+    fi
+    for i in ./inventory/*.cmonkey; do
+      i=$(basename $i)
+      echo ${i%%.cmonkey}
+    done
+    return $?
+  fi
+
+  if [ "$1" != "on" ] ; then
+    $(which stack) $*
+    return $?
+  fi
+
+  shift
+  local _inventory=./inventory/${1:-hosts}.cmonkey
+  if test -f ${_inventory} ; then
+    _inventory=$(cd ./inventory;pwd)/${1:-hosts}.cmonkey
+    export CMONKEY_HOSTS=${_inventory}
+  else
+    echo "Not found: ${_inventory}"
+  fi
+}
+
+function flack() {
+  local _flock=$(echo "$*" | cut -d@ -f 1)
+  local _stack=$(echo "$*" | cut -d@ -f 2)
+  flock2 on ${_flock}
+  stack on ${_stack}
+}
+
+function inventory() {
+  if test -n "${ANSIBLE_HOSTS}" ; then
+    local _inventory=${ANSIBLE_HOSTS}
+    if test -f ${_inventory} ; then
+      echo ""
+      cat ${_inventory}
+    fi
+  fi
+
+  if test -n "${CMONKEY_HOSTS}" ; then
+    _inventory=${CMONKEY_HOSTS}
+    if test -f ${_inventory} ; then
+      echo ""
+      cat ${_inventory}
+    fi
+  fi
+}
+
+function cmonkey() {
+  local _opts=""
+  if test -f "${CMONKEY_HOSTS}"; then
+    _opts="-c ${CMONKEY_HOSTS}"
+  fi
+  cloudmonkey ${_opts} $*
+}

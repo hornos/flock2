@@ -1,0 +1,2 @@
+- name: run tomcat servers
+  docker: image=centos command="service tomcat6 start" ports=:8080

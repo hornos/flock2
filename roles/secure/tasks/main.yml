@@ -1,0 +1,7 @@
+---
+- include: entropy.yml
+- include: login.yml
+- include: su.yml
+- include: sudo.yml
+- include: sshd.yml
+- include: selinux.yml

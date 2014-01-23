@@ -1,0 +1,28 @@
+
+- name: Install Docker
+  yum: name=docker-io
+       state=installed
+  when: ansible_os_family == "RedHat"
+  tags:
+    - packages
+
+- name: Install docker-py
+  pip: name=docker-py
+       state=present
+  tags:
+    - packages
+    - python
+
+- name: Install centos image
+  command: docker pull {{item}}
+  with_items:
+    - centos
+  when: ansible_os_family == "RedHat"
+  tags:
+    - images
+
+- name: Start docker service
+  when: ansible_os_family == "RedHat"
+  service: name=docker
+           state=started
+           enabled=yes

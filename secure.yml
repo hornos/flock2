@@ -1,0 +1,7 @@
+---
+- hosts: all
+  vars_files:
+    - group_vars/networks.yml
+    - group_vars/{{ ansible_os_family }}.yml
+  roles:
+    - secure

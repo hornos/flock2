@@ -1,0 +1,389 @@
+#!/bin/bash
+source $(dirname $0)/../lib/header
+import ostype
+import vb
+
+# TBD: ipmi api
+
+### main
+cmd=${1:-help}
+shift
+
+### args
+case ${cmd} in
+  inventory)
+    echo "[core]"
+    arg=${1:-core-0?}
+    for i in $(VBoxManage list vms | \
+               egrep "${arg}" | \
+               cut -d" " -f1 | \
+               sed s/\"//g); do
+      echo $i
+    done
+  ;;
+
+  #/* Create a VM
+  #// create <NAME> <TYPE> <CPUS> <MEMORY> <HDSIZE> <HOSTNET>
+  create)
+    name=${1:-test}
+    type=${2:-RedHat_64}
+    cpus=${3:-1}
+    memory=${4:-1024}
+    hdsize=${5:-2000000}
+    hostnet=${6:-vboxnet0}
+    vb/create ${name} ${type} ${cpus} ${memory} ${hdsize} ${hostnet}
+  ;;
+
+  #/* Create a template VM
+  #// create <NAME> <TYPE> <CPUS> <MEMORY> <HDSIZE> <HOSTNET>
+  template)
+    name=${1:-test}
+    type=${2:-RedHat_64}
+    cpus=${3:-1}
+    memory=${4:-1024}
+    hdsize=${5:-20000}
+    hostnet=${6:-vboxnet0}
+    vb/create ${name} ${type} ${cpus} ${memory} ${hdsize} ${hostnet}
+  ;;
+
+  #/* Create an XCP VM
+  #// create <NAME> <TYPE> <CPUS> <MEMORY> <HDSIZE> <HOSTNET>
+  xcp)
+    name=${1:-xcp-01}
+    type=${2:-RedHat_64}
+    cpus=${3:-2}
+    memory=${4:-2048}
+    hdsize=${5:-2000000}
+    hostnet=${6:-vboxnet0}
+    vb/create ${name} ${type} ${cpus} ${memory} ${hdsize} ${hostnet}
+  ;;
+
+  #/* Create a gateway VM
+  #// create <NAME> <TYPE> <CPUS> <MEMORY> <HDSIZE> <HOSTNET>
+  gateway)
+    name=${1:-test}
+    type=${2:-Ubuntu_64}
+    cpus=${3:-2}
+    memory=${4:-1024}
+    hdsize=${5:-2000000}
+    hostnet=${6:-bridged}
+    vb/create ${name} ${type} ${cpus} ${memory} ${hdsize} ${hostnet}
+  ;;
+
+  #/* Start a VM or a group
+  #// @ operator is for headless boot
+  #// start [@]<HOST>
+  #//       /[@]<GROUP>
+  start)
+    host="${1}"
+    opts=""
+    group=false
+
+    # group
+    if [ "${host:0:1}" = "/" ] ; then
+      group=true
+      host="${host:1}"
+    fi
+
+    # headless
+    if [ "${host:0:1}" = "@" ] ; then
+      opts="--type headless"
+      host="${host:1}"
+    fi
+
+    if ! ${group} ; then
+      ${vb_mgt} startvm "${host}" ${opts}
+      exit $?
+    fi
+
+    for i in $(vb/list "/${host}") ; do
+      ${vb_mgt} startvm "${i}" ${opts}
+    done
+  ;;
+
+  #/* Install internal or bonding network
+  #// intnet|bondnet <HOST>
+  #//                /<GROUP>
+  bondnet|intnet)
+    host="${1}"
+    opts=""
+    group=false
+
+    # group
+    if [ "${host:0:1}" = "/" ] ; then
+      group=true
+      host="${host:1}"
+    fi
+
+    if ! ${group} ; then
+      vm/${cmd} "${host}"
+      exit $?
+    fi
+
+    for i in $(vb/list "/${host}") ; do
+      vm/${cmd} "${i}"
+    done
+  ;;
+
+  #/* Install storage disks
+  #// storage <HOST>
+  #//         /<GROUP>
+  storage)
+    host="${1}"
+    opts=""
+    group=false
+
+    # group
+    if [ "${host:0:1}" = "/" ] ; then
+      group=true
+      host="${host:1}"
+    fi
+
+    if ! ${group} ; then
+      vb/storage "${host}"
+      exit $?
+    fi
+
+    for i in $(vb/list "/${host}") ; do
+      vb/storage "${i}"
+    done
+  ;;
+
+  #/* Install state disk for gluster
+  #// statedisk <HOST>
+  #//           /<GROUP>
+  statedisk)
+    host="${1}"
+    opts=""
+    group=false
+
+    # group
+    if [ "${host:0:1}" = "/" ] ; then
+      group=true
+      host="${host:1}"
+    fi
+
+    if ! ${group} ; then
+      vb/storage "${host}" 20000 1
+      exit $?
+    fi
+
+    for i in $(vb/list "/${host}") ; do
+      vb/storage "${i}" 20000 1
+    done
+  ;;
+
+  #/* Power off a VM or a group
+  #// off <HOST>
+  #//     /<GROUP>
+  off)
+    host="${1}"
+    opts=""
+    group=false
+    # group
+    if [ "${host:0:1}" = "/" ] ; then
+      group=true
+      host="${host:1}"
+    fi
+
+    if ! ${group} ; then
+      ${vb_mgt} controlvm "${host}" poweroff
+      exit $?
+    fi
+
+    for i in $(vb/list "/${host}") ; do
+      ${vb_mgt} controlvm "${i}" poweroff
+    done
+  ;;
+
+  #/* Power off a VM or a group
+  #// off <HOST>
+  #//     /<GROUP>
+  cycle)
+    host=${1:-test}
+    boot=${3:-disk}
+    echo ""
+    echo "Do you want to switch of the machine(s) and restart from ${boot}?"
+    read
+    ${gbn} off ${host}
+    ${gbn} boot ${host} ${boot}
+    ${gbn} start ${host}
+  ;;
+
+  #/* Reset a VM or a group
+  #// off <HOST>
+  #//     /<GROUP>
+  reset)
+    host="${1}"
+    group=false
+    # group
+    if [ "${host:0:1}" = "/" ] ; then
+      group=true
+      host="${host:1}"
+    fi
+
+    if ! ${group} ; then
+      ${vb_mgt} controlvm "${host}" reset
+      exit $?
+    fi
+
+    for i in $(vb/list "/${host}") ; do
+      ${vb_mgt} controlvm "${host}" reset
+    done
+  ;;
+
+  #/* Make a clone of a VM (snapshots merged)
+  #// clone <HOST>
+  clone)
+    host=${1:-test}
+    ${vb_mgt} clonevm ${host} \
+              --mode machine \
+              --name ${host}-clone \
+              --register
+    exit $?
+  ;;
+
+  #/* Make a VHD disk image from VDI
+  #// vhd <HOST>
+  vhd)
+    # http://www.sysprobs.com/vdi-vhd-convert-virtualbox-virtual-machines-virtual-pc
+    host=${1:-test}
+    disk=$(vb/disk ${host})
+    if ! test -f "${disk}" ; then
+      echo "Disk not found: ${disk}"
+      exit 1
+    fi
+    dest="${disk%%vdi}vhd"
+    if test -f "${dest}"; then
+      rm -f "${dest}"
+    fi
+    ${vb_mgt} clonehd \
+              "${disk}" \
+              "${dest}" \
+              --format VHD
+    exit $?
+  ;;
+
+  #/* Clone, convert and start upload server on the template
+  #// The allow string format: ip/mask
+  #// upload <HOST> <ALLOW> <PORT>
+  upload)
+    host=${1:-test}
+    allow=${2:-127.0.0.1/32}
+    port=${3:-8080}
+    ${gbn} clone ${host}
+    ${gbn} vhd ${host}-clone
+    ${gbn} http ${host}-clone ${allow} ${port}
+  ;;
+
+  share)
+    host=${1:-test}
+    allow=${2:-127.0.0.1/32}
+    port=${3:-8080}
+    ${gbn} http ${host}-clone ${allow} ${port}
+  ;;
+
+  #/* Start webserver for image upload
+  #// The allow string format: ip/mask
+  #// http <HOST> <ALLOW> <PORT>
+  http)
+    host=${1:-test}
+    allow=${2:-127.0.0.1/32}
+    port=${3:-8080}
+    disk=$(vb/disk ${host})
+    disk="${disk%%vdi}vhd"
+    if ! test -f "${disk}" ; then
+      echo "Disk not found: ${disk}"
+      exit 1
+    fi
+    vmdir=$(dirname "${disk}")
+
+    # nginx config
+    cat "${gdn}/http" | \
+    awk -v a="${allow}" \
+        -v l="0.0.0.0:${port}" \
+        -v r="${vmdir}" '{
+      gsub("HTTP_LISTEN",l);
+      gsub("HTTP_ALLOW",a);
+      gsub("HTTP_ROOT",r);
+      print}' \
+    > "${vmdir}/http"
+
+    disk=$(basename "${disk}")
+    myip=$(curl -s http://ifconfig.me)
+    chmod -R a+rX "${vmdir}"
+    echo ""
+    echo "http://${myip}:${port}/${disk}"
+    echo ""
+    echo "HTTP server started on ${port}"
+    echo "Press Ctrl+C to exit"
+    ${http_bin} -c "${vmdir}/http"
+    rm -f "${vmdir}/http"
+    exit $?
+  ;;
+
+  #/* Snapshot a VM or a group
+  #// snap <HOST> <NAME>
+  #//      /<GROUP> <NAME>
+  snap)
+    host=${1:-test}
+    snap=${2:-init}
+    group=false
+
+    # group
+    if [ "${host:0:1}" = "/" ] ; then
+      group=true
+      host="${host:1}"
+    fi
+
+    if ! ${group} ; then
+      ${vb_mgt} snapshot "${host}" take "${snap}"
+      exit $?
+    fi
+
+    for i in $(vb/list "/${host}") ; do
+      ${vb_mgt} snapshot "${i}" take "${snap}"
+    done
+  ;;
+
+  #/* Set boot device for a VM or a group
+  #// snap <HOST> <DEVICE>
+  #//      /<GROUP> <DEVICE>
+  boot)
+    host=${1:-test}
+    boot=${2:-net}
+    group=false
+    # group
+    if [ "${host:0:1}" = "/" ] ; then
+      group=true
+      host="${host:1}"
+    fi
+
+    if ! ${group} ; then
+      ${vb_mgt} modifyvm "${host}" --boot1 "${boot}"
+      exit $?
+    fi
+
+    for i in $(vb/list "/${host}") ; do
+      ${vb_mgt} modifyvm "${i}" --boot1 "${boot}"
+    done
+  ;;
+
+  group)
+    host=${1:-test}
+    group=${2:-test}
+    ${vb_mgt} modifyvm "${host}" --groups "/${group}"
+  ;;
+
+  group?)
+    group=${1:-/test}
+    vb/list "${group}"
+  ;;
+
+  #/* Help
+  #// help
+  *)
+    help $0
+  ;;
+
+esac

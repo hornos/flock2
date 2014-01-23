@@ -1,0 +1,9 @@
+
+### RedHat repos
+- { include: epel.yml, rpm: "epel-release-6-8.noarch.rpm",url: "https://dl.fedoraproject.org/pub/epel/6/x86_64/",when: ansible_os_family == "RedHat" }
+- { include: rpmforge.yml, rpm: "rpmforge-release-0.5.3-1.el6.rf.x86_64.rpm", url: "http://pkgs.repoforge.org/rpmforge-release", when: ansible_os_family == "RedHat"}
+- { include: elrepo.yml, key: "RPM-GPG-KEY-elrepo.org", rpm: "elrepo-release-6-5.el6.elrepo.noarch.rpm", url: "http://elrepo.org", when: ansible_os_family == "RedHat" }
+- { include: hornos.yml, rpm: "home:hornos:centos.repo",url: "http://download.opensuse.org/repositories/home:/hornos:/centos/CentOS_CentOS-6",when: ansible_os_family == "RedHat" }
+
+- include: top.yml
+- include: python.yml

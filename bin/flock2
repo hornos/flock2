@@ -1,0 +1,369 @@
+#!/bin/bash
+source $(dirname $0)/../lib/header
+import gui
+
+# TBD: help
+
+# trap
+tmp=".${gbn}.$$"
+function flock/exit() {
+  if test -r "${tmp}" ; then
+    rm -f "${tmp}"
+  fi
+  exit 1
+}
+trap flock/exit INT TERM EXIT
+
+
+### defaults
+inventory=${ANSIBLE_HOSTS:-./hosts}
+
+### args
+cmd=${1:-help}
+shift
+_args=$*
+
+hosts=${1:-root}
+_arg1=${hosts}
+shift
+
+module=${1:-ping}
+_arg2=${module}
+shift
+opts=$*
+
+### host operators
+user=${hosts/@*}
+if [ ! -z "$user" ] ; then
+  hosts=${hosts/${user}}
+fi
+
+### default user is sysop
+if [ -z "$user" ] ; then
+  user=sysop
+fi
+
+_opts=""
+
+# too much love will kill you
+if [ "${hosts:0:1}" = "@" ] ; then
+  _opts="${_opts} -k"
+  hosts="${hosts:1}"
+  if [ "${hosts:0:1}" = "@" ] ; then
+    _opts="${_opts} --sudo"
+    hosts="${hosts:1}"
+      if [ "${hosts:0:1}" = "@" ] ; then
+        _opts="${_opts} -K"
+        hosts="${hosts:1}"
+    fi
+  fi
+fi
+
+### common options
+key=./keys/${user}
+pubkey=./keys/${user}.pub
+_key=""
+if test -r ${key} ; then
+  _key="--private-key=${key}"
+fi
+options="-u ${user} ${_key} -i ${inventory}"
+
+### modules
+_module=$module
+if [ -r "${module}.yml" ] ; then
+  module="${module}.yml"
+fi
+
+
+### main
+# mind that non-module commands should exit
+case ${cmd} in
+  #/* Call jockey password
+  #// password <*ARGS>
+  password)
+    jockey password ${_arg1}
+    exit $?
+  ;;
+
+  #/* Initialize flock
+  #// init
+  init)
+    echo ""
+    read -p "Do you want to initialize flock?"
+    
+    # keys
+    if [ ! -d ./keys ]; then
+      mkdir ./keys
+    else
+      echo "Keys directory OK"
+    fi
+    
+    # PXE
+    if [ ! -d ./space/boot/pxelinux.cfg ]; then
+      mkdir -p ./space/boot/pxelinux.cfg
+    else
+      echo "PXE directory OK"   
+    fi
+
+    if [ ! -f ./keys/sysop ] ; then
+      echo ""
+      echo "Generating System Operator key (sysop)"
+      ssh-keygen -b2048 -f ./keys/sysop
+    else
+      echo "Sysop SSH key OK" 
+    fi
+
+    if [ ! -f ./keys/sysop ] ; then
+      echo ""
+      echo "Generating no password root key (nopass)"
+      ssh-keygen -b2048 -N "" -f ./keys/nopass
+      echo ""
+    else
+      echo "Nopass SSH key OK" 
+    fi 
+
+    exit 0
+  ;;
+
+  #/* List SSH keys
+  #// keys
+  keys)
+    echo ""
+    printf "%-8s %s %58s\n" "ID" "bits FP" "email (type)"
+    gui/line
+    for i in sysop nopass ; do
+      printf "%-8s %s\n" "${i}" "$(ssh-keygen -lf keys/${i})"
+    done
+    echo ""
+    exit 0
+  ;;
+
+### PLAYBOOK
+
+  #/* play and ansible playbook
+  #// play [@@@]<HOST> <MODULE> [<OPTS>]
+  play)
+    if [ ! -r "${module}" ] ; then
+      echo "Not found: ${module}"
+      exit 1
+    fi
+    command="ansible-playbook"
+    command_options="${module} -l ${hosts}"
+  ;;
+
+  #/* dry-play and ansible playbook
+  #// check [@@@]<HOST> <MODULE> [<OPTS>]
+  check)
+    if [ ! -r "${module}" ] ; then
+      echo "Not found: ${module}"
+      exit 1
+    fi
+    command="ansible-playbook"
+    command_options="${module} -l ${hosts}"
+  ;;
+
+  show)
+    command="ansible-playbook"
+    command_options="${module} -l ${hosts}"
+    echo ""
+    echo "The following tasks will be played:"
+    echo ""
+    cat ${module} | \
+    egrep "name:" | \
+    sed s/.*name://
+    echo ""
+    read -p "Press any key to continue or Ctrl+C to exit!" pass
+  ;;
+
+
+### ANSIBLE
+  #/* ansible modules
+  #// module [<OPTS>]
+  module)
+    command="ansible"
+    command_options="${hosts} -m ${module}"
+  ;;
+
+  #// setup [<OPTS>]
+  setup|facts)
+    command="ansible"
+    command_options="${hosts} -m setup"
+  ;;
+
+  #// command [<OPTS>]
+  command)
+    command="ansible"
+    command_options="${hosts} -m command -a \"${module} ${opts}\""
+    opts=""
+  ;;
+
+  #// stop|start|restart [<OPTS>]
+  restart|stop|start)
+    command="ansible"
+    command_options="${hosts} -m command -a \"service ${_module} ${cmd}\""
+  ;;
+
+  shell)
+    echo "${module}" > ${tmp}
+    chmod a+x ${tmp}
+    command="ansible"
+    command_options="${hosts} -m shell -a \"${tmp}\""
+  ;;
+
+  reboot)
+    command="ansible"
+    command_options="${hosts} -m command -a /sbin/reboot"
+  ;;
+
+  shutdown)
+    command="ansible"
+    command_options="${hosts} -m command -a \"/sbin/shutdown -h now\""
+  ;;
+
+  bootlog)
+    command="ansible"
+    command_options="${hosts} -m command -a \"cat /var/log/boot.log\""
+  ;;
+  
+  update)
+    command="ansible"
+    command_options="${hosts} -m command -a \"yum -y update\""
+  ;;
+
+  ping)
+    command="ansible"
+    command_options="${hosts} -m ping"
+  ;;
+
+  ssh)
+    _hosts=$(cat ${inventory} | \
+    grep ^${hosts} | \
+    sed s/${hosts}\ *// | \
+    sed s/\ /\;/)
+
+    eval ${_hosts}
+    host=$ansible_ssh_host
+    key=keys/${user}
+    _key=""
+    if test -r ${_key} ; then
+      _key="-i ${key}"
+    fi
+    # check Ting fingerprint
+    ting=$HOME/ting/hosts/${hosts}.json
+    if test -r ${ting} ; then
+       cat ${ting} | grep fp
+    fi
+    ssh -X ${opts} ${_key} ${user}@${host}
+    exit $?
+    ;;
+
+  http|boot|masq)
+    jockey $cmd
+    exit $?
+    ;;
+  provision)
+    # TBD auto kill trap
+    xterm -geometry 182x47 -e provision
+    exit $?
+    ;;
+  snap)
+    vbox $cmd ${_args}
+    exit $?
+    ;;
+  kick)
+    jockey $cmd ${_args}
+    exit $?
+    ;;
+  coreos)
+    jockey $cmd $cmd ${_args} ${pubkey}
+    exit $?
+    ;;
+
+  out)
+    # args
+    no=${_arg1:-3}
+    name=${_arg2:-core}
+    inventory="./inventory/${name}.ansible"
+    type=${1:-centos65}
+    shift
+    os=${1:-RedHat_64}
+    shift
+    first=${1:-1}
+    first=$((first-1))
+    echo ""
+    echo "Basename: ${name}"
+    echo "Machines: ${no}"
+    echo ""
+    read -p "Do you want to create the flock?"
+
+    if test $first -eq 0; then
+      echo "[${name}]" > ${inventory}
+    fi
+
+    for i in $(seq 1 ${no}) ; do
+      i=$((i+first))
+      echo ""
+      _no=$(printf %0.2d ${i})
+      _id=${name}-${_no}
+      _ip=10.1.1.${i}
+      echo "Creating ${_id}..."
+      vbox create ${_id} ${os}
+      vbox boot ${_id} net
+      vbox group ${_id} ${name}
+      jockey kick ${type} @${_id} ${_ip} ${_id}
+      echo "${_id} ansible_ssh_host=${_ip} ansible_connection=paramiko" >> ${inventory}
+    done
+    exit $?
+    ;;
+
+  bootstrap)
+    group=${_arg1:-/test}
+    for i in $(vbox group? ${group}) ; do
+      echo ""
+      echo "BOOTSTRAP host: $i"
+      echo -n "PASSWORD "
+      jockey password @${i}
+      ${gbn} play root@@${i} bootstrap
+    done
+    exit $?
+    ;;
+
+  secure)
+    group=${_arg1:-/test}
+    for i in $(vbox group? ${group}) ; do
+      echo ""
+      echo "Bootstrap and secure: $i"
+      jockey password @${i}
+      ${gbn} play root@@${i} bootstrap
+      ${gbn} play @@${i} secure
+      ${gbn} reboot @@${i}
+    done
+    exit $?
+    ;;
+
+  cert)
+    ca=${_arg1:-coreca}
+    group=${_arg2:-/test}
+    for i in $(vbox group? ${group}) ; do
+      echo ""
+      echo "Creating certificate for $i"
+      cacert host $ca $i
+      cacert sign $ca $i
+    done
+    exit $?
+    ;;
+
+  #/* Help
+  #// help
+  *)
+    help $0
+    exit $?
+  ;;
+esac
+
+### run
+echo ""
+echo "Running: $command $command_options $options ${_opts} $opts"
+echo ""
+eval "$command $command_options $options ${_opts} $opts"
+

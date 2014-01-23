@@ -1,0 +1,85 @@
+### PACKAGES
+- name: Install packages
+  yum: name={{item}}
+       state=installed
+  with_items:
+    - sudo
+    - libselinux-python
+  when: ansible_os_family == "RedHat"
+  tags:
+    - packages
+    - sudo
+
+- name: Install packages
+  apt: name={{item}}
+       state=installed
+  with_items:
+    - sudo
+  when: ansible_os_family == "Debian"
+  tags:
+    - packages
+    - sudo
+
+### SYSTEM OPERATOR
+- name: Create System Operator
+  user: name=sysop
+        comment='System Operator'
+        groups=wheel
+        password=*
+        shell=/bin/bash
+        append=yes
+  when: ansible_os_family == "RedHat"
+  tags:
+    - wheel
+- name: Create System Operator
+  user: name=sysop
+        comment='System Operator'
+        groups=sudo
+        password=*
+        shell=/bin/bash
+        append=yes
+  when: ansible_os_family == "Debian"
+  tags:
+    - wheel
+
+### SUDO
+- name: Sudo for the wheel group
+  lineinfile: dest=/etc/sudoers.d/wheel line="%wheel ALL=(ALL) NOPASSWD:ALL"
+              create=yes
+              state=present
+              regexp='^%wheel'
+              backup=yes
+  when: ansible_os_family == "RedHat"
+  tags:
+    - sudo
+    - wheel
+
+- name: Set mode for /etc/sudoers.d/wheel
+  file: path=/etc/sudoers.d/wheel
+        owner=root
+        group=root
+        mode=0440
+  when: ansible_os_family == "RedHat"
+  tags:
+    - sudo
+    - wheel
+
+- name: Sudo for the wheel group
+  copy: content="%sudo ALL=(ALL) NOPASSWD:ALL"
+        dest=/etc/sudoers.d/wheel
+        owner=root
+        group=root
+        mode=0440
+  when: ansible_os_family == "Debian"
+  tags:
+    - sudo
+    - wheel
+
+### SSH KEY
+- name: Install sysop public key
+  authorized_key: user=sysop
+                  key="{{ lookup('file', 'sysop.pub') }}"
+                  manage_dir=yes
+  tags:
+    - ssh
+    - keys

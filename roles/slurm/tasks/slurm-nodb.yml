@@ -1,0 +1,207 @@
+
+  - name: Install slurm packages
+    yum: name={{item}}
+         state=latest
+    with_items:
+      - slurm
+      - slurm-munge
+      - slurm-pam_slurm
+      - slurm-perlapi
+      - slurm-plugins
+      - slurm-sjobexit
+      - slurm-sjstat
+      - mailx
+    when: ansible_os_family == "RedHat"
+    tags:
+      - packages
+
+### USERS
+  - name: Create users
+    user: name={{item}}
+          createhome=no
+    with_items:
+      - slurm
+    tags:
+      - users
+
+  - name: Create slurm group
+    group: name=slurm
+           state=present
+    tags:
+      - slurm
+
+  - name: Create slurm user
+    user: name=slurm
+          comment="Slurm Scheduler"
+          state=present
+          password=*
+          group=slurm
+    tags:
+      - slurm
+
+  - name: Create slurm directories
+    file: path=/var/{{item}}/slurm
+          owner=slurm
+          group=slurm
+          state=directory
+    with_items:
+      - log
+      - run
+      - lib
+    tags:
+      - slurm
+
+  - name: Install slurm.conf
+    template: src=slurm.conf.j2
+              dest=/etc/slurm/slurm.conf
+              owner=slurm
+              group=slurm
+              mode=0644
+              backup=yes
+    notify:
+      - Restart slurm
+    tags:
+      - slurm
+      - config
+
+  - name: Create state directory
+    file: path={{slurm.state}}
+          owner=slurm
+          group=slurm
+          state=directory
+    tags:
+      - state
+    when: inventory_hostname == master
+    tags:
+      - slurm
+
+  - name: Create checkpoint directory
+    file: path={{slurm.checkpoint}}
+          owner=slurm
+          group=slurm
+          state=directory
+    tags:
+      - state
+    when: inventory_hostname == master
+    tags:
+      - slurm
+
+  - name: Create spool directory
+    file: path=/var/spool/slurmd
+          owner=slurm
+          group=slurm
+          state=directory
+    tags:
+      - slurm
+
+  - name: Install /etc/sysconfig/slurm
+    template: src=sysconfig-slurm.j2
+              dest=/etc/sysconfig/slurm
+              owner=slurm
+              group=slurm
+              mode=0644
+    when: ansible_os_family == "RedHat"
+    notify:
+      - Restart slurm
+    tags:
+      - slurm
+
+  - name: Install logrotate
+    template: src=logrotate-slurm.j2
+              dest=/etc/logrotate.d/slurm
+              owner=slurm
+              group=slurm
+              mode=0644
+    tags:
+      - slurm
+
+  - name: Enable slurmctld service
+    lineinfile: dest=/etc/services
+                regexp="^slurmctld 6817/{{item}}"
+                line="slurmctld 6817/{{item}}"
+    with_items:
+     - tcp
+     - udp
+    tags:
+      - config
+      - services
+
+  - name: Enable slurmd service
+    lineinfile: dest=/etc/services
+                regexp="^slurmd 6818/{{item}}"
+                line="slurmd 6818/{{item}}"
+    with_items:
+     - tcp
+     - udp
+    tags:
+      - config
+      - services
+
+  - name: Enable slurmdbd service
+    lineinfile: dest=/etc/services
+                regexp="^slurmdbd 6819/{{item}}"
+                line="slurmdbd 6819/{{item}}"
+    with_items:
+     - tcp
+     - udp
+    tags:
+      - config
+      - services
+
+### IPSet
+  - name: Install ipset tables
+    template: src=templates/etc/ipset.d/{{item}}.j2
+              dest=/etc/ipset.d/{{item}}
+              owner=root
+              group=root
+              mode=0755
+    with_items:
+      - compute.sh
+    tags:
+      - firewall
+      - ipset
+    notify:
+      - Restart ipset
+
+### Firewall
+  - name: Install firewall rules
+    template: src=templates/etc/shorewall/rules.d/slurm.j2
+              dest=/etc/shorewall/rules.d/slurm
+              owner=root
+              group=root
+              mode=0640
+    tags:
+      - firewall
+    notify:
+      - Restart shorewall
+
+  - name: Start slurmdbd
+    service: name=slurmdbd
+             state=started
+             enabled=yes
+    when: inventory_hostname == backup
+    tags:
+      - slurm
+      - database
+
+  - name: Start slurm
+    service: name={{service.slurm}}
+             state=started
+             enabled=yes
+
+  handlers:
+    - name: Restart slurmdbd
+      service: name=slurmdbd
+               state=reconfig
+
+    - name: Restart slurm
+      service: name={{service.slurm}}
+               state=restarted
+
+    - name: Restart ipset
+      service: name=ipset
+               state=reloaded
+
+    - name: Restart shorewall
+      service: name=shorewall
+               state=restarted

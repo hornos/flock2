@@ -1,0 +1,77 @@
+#!/bin/bash
+source $(dirname $0)/../lib/header
+import ostype
+import dns
+
+### main
+cmd=${1:-help}
+shift
+
+### args
+# http://stackoverflow.com/questions/8789729/zero-padding-in-bash
+
+case ${cmd} in
+  #/* Generate dyndns keys
+  #// keys <DOMAIN> <NAME> [<COUNT>]
+  keys)
+    domain=${1}.
+    name=${2:-test}
+    count=${3:-1}
+    read -p "Generate DNSSEC keys?"
+    if ! test -d ./dnssec ; then
+      mkdir ./dnssec
+    fi
+    cd ./dnssec
+    for i in $(seq -f "%02g" 1 ${count}); do
+      host=${name}-${i}.${domain}
+      ${dns_dnskey} -a ${dns_algo} -b ${dns_bits} -n USER ${host}
+    done
+
+    # # alias links
+    # for i in *.key ; do
+    #   j=$i
+    #   j=${j%%.*}
+    #   j=${j:1}.key
+    #   ln -s ${i} ${j}
+    # done
+
+    # for i in *.private ; do
+    #   j=$i
+    #   j=${j%%.*}
+    #   j=${j:1}.private
+    #   ln -s ${i} ${j}
+    # done
+  ;;
+
+  ln)
+    cd ./dnssec
+    for i in *.key ; do
+      j=$i
+      j=${j%%.*}
+      j=${j:1}.key
+      ln -s ${i} ${j}
+    done
+
+    for i in *.private ; do
+      j=$i
+      j=${j%%.*}
+      j=${j:1}.private
+      ln -s ${i} ${j}
+    done
+  ;;
+
+  #/* List dyndns keys in ./dnsssec
+  #// ls
+  ls)
+    cd ./dnssec
+    for i in *.key ; do
+      cat $i
+    done
+  ;;
+
+  #/* Help
+  #// help
+  *)
+    help $0
+  ;;
+esac

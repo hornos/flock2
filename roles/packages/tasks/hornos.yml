@@ -1,0 +1,4 @@
+- name: Download hornos repo
+  get_url: url={{url}}/{{rpm}} dest=/etc/yum.repos.d/{{rpm}}
+  tags:
+    - packages

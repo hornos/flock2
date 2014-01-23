@@ -1,0 +1,231 @@
+#!/bin/bash
+source $(dirname $0)/../lib/header
+# do not import ca!
+
+#
+# http://openvpn.net/index.php/open-source/documentation/howto.html#quick
+#
+
+### TBD defaults
+ca_dir="./ca"
+ca_ver=2.0
+inventory=${ANSIBLE_HOSTS:-./hosts}
+config=${FLOCK_CONFIG:-./flock.conf}
+openvpn='/usr/local/Cellar/openvpn/2.2.2/sbin/openvpn'
+
+if [ -r "${config}" ] ; then
+  source "${config}"
+fi
+
+
+function ca/init() {
+  # ca/mkdir "${ca_dir}/grid-security"
+  rsync -av "${ca_dir}/easy-rsa/easy-rsa/${ca_ver}" "${ca_dir}/${1}"
+}
+
+### args
+cmd=${1:-help}
+shift
+
+case "${cmd}" in
+
+  #/* Create OpenVPN CA
+  #// create <CN> <DAYS> <EMAIL>
+  create)
+    ca_cn=${1:-vpnca}
+    shift
+    days=${1:-365}
+    shift
+    email=${1}
+
+    ca/init "${ca_cn}"
+ 
+    pushd "ca/${ca_cn}/${ca_ver}"
+    source vars
+    ./clean-all
+    ./build-ca
+    popd
+    echo ""
+  ;;
+
+  #/* Create OpenVPN server cert
+  #// server <CA CN> <FQDN> [<OPTS>]
+  server)
+    ca_cn=${1:-vpnca}
+    shift
+    fqdn=${1:-server}
+    shift
+    opts=${*}
+
+    pushd "ca/${ca_cn}/${ca_ver}"
+    source vars
+    ./build-key-server ${fqdn}
+    popd
+  ;;
+
+  #/* Create OpenVPN client cert
+  #// client <CA CN> <FQDN> [<OPTS>]
+  client)
+    ca_cn=${1:-vpnca}
+    shift
+    fqdn=${1:-server}
+    shift
+    opts=${*}
+
+    pushd "ca/${ca_cn}/${ca_ver}"
+    source vars
+    ./build-key ${fqdn}
+    popd
+  ;;
+
+  #/* Generate DH parameter for the server
+  #// dh <CA CN> <FQDN> [<OPTS>]
+  dh)
+    ca_cn=${1:-vpnca}
+    shift
+    fqdn=${1:-server}
+    shift
+    opts=${*}
+
+    pushd "ca/${ca_cn}/${ca_ver}"
+    source vars
+    ./build-dh
+    popd
+  ;;
+
+  #/* Generate TA key
+  #// ta <CA CN> <FQDN> [<OPTS>]
+  ta)
+    ca_cn=${1:-vpnca}
+    shift
+    fqdn=${1:-server}
+    shift
+    opts=${*}
+
+    pushd "ca/${ca_cn}/${ca_ver}/keys"
+    ${openvpn} --genkey --secret ta.key
+    popd
+  ;;
+
+  param)
+    ca_cn=${1:-vpnca}
+    shift
+    fqdn=${1:-server}
+    shift
+    opts=${*}
+
+    pushd "ca/${ca_cn}/${ca_ver}"
+    source vars
+    ./build-dh
+    popd
+
+    pushd "ca/${ca_cn}/${ca_ver}/keys"
+    ${openvpn} --genkey --secret ta.key
+    popd
+  ;;
+
+  #/* Create good enough Tunnelblick config
+  #// blick <CA CN> <FQDN> [<OPTS>]
+  blick)
+    ca_cn=${1:-vpnca}
+    shift
+    fqdn=${1:-sysop}
+    shift
+    opts=${*}
+
+    dest="${HOME}/.openvpn/${fqdn}-${ca_cn}"
+    conf="${dest}.ovpn"
+    if ! test -d "${dest}"; then
+      mkdir ${dest}
+    else
+      echo "Found configuration: ${dest}"
+      exit 1
+    fi
+
+    cat > "${conf}" <<EOF
+client
+proto tcp
+remote <REMOTE> 11940
+dev tun
+ca ${fqdn}-${ca_cn}/ca.crt
+cert ${fqdn}-${ca_cn}/client.crt
+key ${fqdn}-${ca_cn}/client.key
+tls-auth ${fqdn}-${ca_cn}/ta.key 1
+keepalive 10 120
+cipher DES-EDE3-CBC
+comp-lzo
+persist-key
+persist-tun
+verb 3
+EOF
+
+    echo ""
+    echo "Creating OVPN config"
+    pushd "ca/${ca_cn}/${ca_ver}/keys"
+    cp -v ${fqdn}.crt "${dest}/client.crt"
+    cp -v ${fqdn}.key "${dest}/client.key"
+    cp -v ta.key "${dest}"
+    cp -v ca.crt "${dest}"
+    popd
+  ;;
+
+  #/* Create good enough iDevice config
+  #// idevice <CA CN> <FQDN> [<OPTS>]
+  idevice)
+    ca_cn=${1:-vpnca}
+    shift
+    fqdn=${1:-iphone}
+    shift
+    opts=${*}
+    dest="${PWD}/ca/${ca_cn}/${fqdn}"
+    if ! test -d "${dest}"; then
+      mkdir ${dest}
+    fi
+
+    pushd "ca/${ca_cn}/${ca_ver}/keys"
+    cp -v ${fqdn}.crt "${dest}/client.crt"
+    cp -v ${fqdn}.key "${dest}/client.key"
+    cp -v ta.key "${dest}"
+    cp -v ca.crt "${dest}"
+    popd
+
+    cp -v roles/vpn/ovpn/iphone.ovpn "${dest}/client.ovpn"
+  ;;
+
+  #/* TBD TiNG ThINKS
+  #// ting <CA CN> <FQDN>
+  ting)
+    pat=${1}
+    shift
+    fqdn=${1:-core}
+    target="${HOME}/.openvpn/${fqdn}.ovpn"
+    cat > "${target}" <<EOF
+client
+proto tcp
+EOF
+    cat $HOME/ting/hosts/${pat}.json | \
+    grep ip | \
+    sed 's/[^0-9.]//g' | \
+    awk '{print "remote",$1,"1194"}' \
+    >> "${target}"
+    cat >> "${target}" <<EOF
+dev tun
+ca ${fqdn}/ca.crt
+cert ${fqdn}/client.crt
+key ${fqdn}/client.key
+tls-auth ${fqdn}/ta.key 1
+keepalive 10 120
+cipher DES-EDE3-CBC
+comp-lzo
+persist-key
+persist-tun
+verb 3
+EOF
+  ;;
+
+  #/* Help
+  #// help
+  *)
+    help $0
+  ;;
+esac

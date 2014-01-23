@@ -1,0 +1,8 @@
+- name: Set default umask
+  lineinfile: dest=/etc/login.defs
+              state=present
+              regexp="^UMASK"
+              line="UMASK 007"
+              backup=yes
+  tags:
+    - config
