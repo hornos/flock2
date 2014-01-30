@@ -5,7 +5,7 @@
 *The fact is, Adelmo's death has caused much spiritual unease among my flock.*
 
 
-*Flock* is an infrastructure prototype engine. You can use it to install and setup arbitrary large infrastructures from scratch with a laptop. All you need is some basic CLI tools, Ansible and Internet connection. It was tested in OS X but Linux should work as well.
+*Flock(2)* is an infrastructure prototype engine. You can use it to install and setup arbitrary large infrastructures from scratch with a laptop. All you need is some basic CLI tools, Ansible and Internet connection. It was tested in OS X but Linux should work as well.
 
 Virtual environments are built in VirtualBox. The goal is to keep virtual (test) and production systems as close as possible. It is also easy to make CloudStack templates from VirtualBox images.
 
@@ -33,22 +33,22 @@ Install [VirtualBox](https://www.virtualbox.org/) with the [extension pack](http
 ### Setup
 Edit your `.profile` or `.bash_profile` and login again:
 
-    source $HOME/flock/flockrc
+    source $HOME/flock2/flockrc
 
-Mind that `flock` always works relative to the current directory so make your moves in the flock directory:
+Mind that `flock2` always works relative to the current directory so make your moves in the flock directory:
 
-    pushd flock
+    pushd flock2
 
 You need some initial step after install eg. generate SSH keys:
 
-    flock init
+    flock2 init
 
 Keys and certificates are in the `keys` directory. By default all your operations are done by the `sysop` user on the remote machines.
 
 #### Inventories
 Ansible host inventories and Cloud Monkey config files are kept under the `inventory` directory with names `.ansible` and `.cmonkey`, respectively. To change Ansbile or Cloud Monkey inventory:
 
-    flock on <HOSTS>
+    flock2 on <HOSTS>
     stack on <STACK>
 
 or in one command:
@@ -61,7 +61,7 @@ If you use RVM you can set prompt indicators, check `profile`.
 
 ### Flock Wrappers
 
-    flock    - Ansible wrapper
+    flock2   - Ansible wrapper
     cacert   - Simple CA manager
     vbox     - VirtualBox wrapper
     ovpn     - OpenVPN wrapper
@@ -114,123 +114,13 @@ The boot server listens on the `boot_server` IP address. Debian-based systems us
 
 Start bootp provision servers by (each in a separate terminal):
 
-    flock boot
+    flock2 boot
     (open a new terminal)
-    flock http
+    flock2 http
 
 Terminate servers by pressing `Ctrl-C`.
 
 Go to [Install Core Server](#core)
-
-### Cloudstack Template Setup (optional)
-Network can be different in the cloud. Usually, `eth0` is connected to the Internet and eth1 is for internal connections:
-
-    Network  | Inerface    | IPv4 Addr  | Mask | DHCP
-    -------------------------------------------------
-    external | eth0        | CS         | CS   | on
-    system   | eth1        |                     off
-
-#### Create Templates
-You can create a template on Cloudstack or in your VirtualBox. Create a template machine (for CentOS with a 20GB disk):
-
-    vbox template centos-template 
-
-Create an Ansible inventory (`.inventory/template.ansible`):
-
-    [template]
-    centos-template ansible_ssh_host=10.1.1.10 ansible_connection=paramiko
-
-Bootstrap the machine:
-
-    flock kick centos64-template @centos-template 10.1.1.10 centos-template
-    flock kick precise-template @ubuntu-template 10.1.1.11 ubuntu-template
-
-Start the servers and the machine:
-
-    flock http
-    flock boot
-    vbox start centos-template
-
-Switch off bootp and restart the machine:
-
-    vbox cycle centos-template with disk
-
-Switch to the template inventory and start cheffing :)
-
-    flock on template
-    flock secure /template
-    vbox snap centos-template secure
-
-Optionally, at this point you can prepare the template for upload:
-
-    flock play @@template minimal-template
-
-Or reach the ground state:
-
-    flock play @@template ground
-    flock reboot @@template
-    vbox snap centos-template ground
-
-Create a template. *Mind that network, firewall resets! Also mind that SSH port is allowed without any FW restriction, and after VM create you should refine ipset/shorewall!* You might have to change NTP settings as well. Fot the xenguest playbook you have to copy `xen-guest-utilities*.rpm` into the `rpms` directory. TBD multicast change
-
-    flock play @@template ground-template
-    flock shutdown @@template
-    vbox snap centos-template template
-
-Clone the machine and start upload server:
-
-    vbox upload centos-template <ALLOW>
-
-where `<ALLOW>` is an ngnix allow rule range or address (eg. 192.168.1.0/24).
-
-Switch to your [Cloud Monkey](https://www.youtube.com/watch?v=y6wX4UhJ_Vg) inventory by `stack on <INVENTORY>` and upload/[register](https://cloudstack.apache.org/docs/api/apidocs-4.0.0/user/registerTemplate.html) the YOLO:
-
-    set display table
-    list ostypes
-    list zones
-    register template displaytext=template-test format=VHD hypervisor=XenServer name=template-test ostypeid=<OSTYPEID> url=<URL TO VHD> zoneid=<ZONEID>
-
-You might have to create an isolated network. You need the following `id`s of: zone, template, compute, disk offering, affinity and network:
-
-    list zones
-    list templates templatefilter=community
-    list serviceofferings
-    list diskofferings
-    list networkofferings
-    deploy virtualmachine name=test displayname=test zoneid=<ZONEID> templateid=<TEMPID> serviceofferingid=<SERVICEID> diskofferingid=<DISKID> networkids=<INTERNETID>,<INTERNALID>
-
-The first card is the default and should be connected to the Internet. You can extend cmonkey inventory with default values and do the YOLO. Add a new section:
-
-    [defaultvm]
-    ostypeid = <OSTYPEID>
-    zoneid = <ZONEID>
-    templateid = <TEMPID>
-    serviceofferingid = <SERVICEID>
-    networkids = <INTERNETID>,<INTERNALID>
-
-`diskofferingid=<DISKID>` is optional. Stack out the flock:
-
-    stack out 3 core
-
-Create ansible inventory:
-
-    stack inventory <NAME>
-    flock on <NAME>
-
-Profit and happy cheffing :)
-
-    flock ping @@core
-    flock setup @@core
-    flock command @@core hostname
-    flock ssh @@<HOST>
-
-Fix ipset whitelist without system network:
-
-    flock play @@core roles/firewall/whitelist.yml --extra-vars="is_nosys=true"
-
-TBD genders pssh
-TBD initial reset dyndns
-TBD [ansible shell](https://github.com/dominis/ansible-shell)
 
 ### <a name="core"></a>Install Core Servers
 The following network topology is used in the VirtualBox environment. You have to use `vboxnet0` as `eth0` since bootp works only on the first interface. For a production or a cloud environment you have to exchange the two interface (see above).
@@ -242,12 +132,12 @@ The following network topology is used in the VirtualBox environment. You have t
 
 Create 3 VMs (aka triangle):
 
-    flock out 3 core centos64
+    flock2 out 3 core centos64
 
 Start the boot servers on your OS X host:
 
-    flock http
-    flock boot
+    flock2 http
+    flock2 boot
 
 Start the machines in headless mode (`/` - means group, `@` - headless mode):
 
@@ -269,23 +159,23 @@ With the `snap` command you can snapshot the VM:
 #### Configuration
 Change the inventory for the Ansible steps:
 
-    flock on core
+    flock2 on core
 
 Bootstrap the flock. The subsequent steps are based on Ansible and you might have to delete old hostkey lines in `$HOME/.ssh/known_hosts`.
 
-    flock bootstrap /core
+    flock2 bootstrap /core
 
 The bootstrap process installs the `sysop` administrator user. The SSH key generated by the `flock init` command is used for the `sysop` user. Host strings without a user default to `sysop`. Examples:
 
-    flock ping @core    - ping cores by sysop
-    flock ping me@core  - ping cores by me
-    flock ping me@@core - ping cores by me with sudo
-    flock ping @@@core  - ping cores by sysop with sudo and ask for the sudo password
+    flock2 ping @core    - ping cores by sysop
+    flock2 ping me@core  - ping cores by me
+    flock2 ping me@@core - ping cores by me with sudo
+    flock2 ping @@@core  - ping cores by sysop with sudo and ask for the sudo password
 
 Verify with ping or setup:
 
-    flock ping @@core
-    flock ping @@setup
+    flock2 ping @@core
+    flock2 ping @@setup
 
 #### Network Setup
 The `networks.yml` is a central network topology file, you should link in other playbook directories as well. It is possible to set interfaces in a delicate way. The `interfaces` structure defines pseudo-interfaces while the `path` structure defines the real ones (eg. good for bonding). Example:
