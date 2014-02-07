@@ -1,0 +1,14 @@
+#
+# https://docs.newrelic.com/docs/server/server-monitor-installation-redhat-and-centos
+#
+- name: Download newrlic repo
+  get_url: url={{url}}/{{rpm}} dest=/root
+  when: ansible_os_family == "RedHat"
+  tags:
+    - packages
+
+- name: Install newrelic repo
+  command: yum -y localinstall /root/{{rpm}}
+  when: ansible_os_family == "RedHat"
+  tags:
+    - packages

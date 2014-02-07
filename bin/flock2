@@ -51,6 +51,7 @@ pubkey=./keys/${user}.pub
 _key=""
 if test -r ${key} ; then
   _key="--private-key=${key}"
+  ssh-add ${key}
 fi
 options="-u ${user} ${_key} -i ${inventory}"
 
@@ -78,7 +79,6 @@ _module=$module
 if [ -r "${module}.yml" ] ; then
   module="${module}.yml"
 fi
-
 
 ### main
 # mind that non-module commands should exit
@@ -328,7 +328,7 @@ case ${cmd} in
       echo "BOOTSTRAP host: $i"
       echo -n "PASSWORD "
       jockey password @${i}
-      ${gbn} play root@@${i} bootstrap
+      ${gbn} play root@@${i} bootstrap -c paramiko
     done
     exit $?
     ;;

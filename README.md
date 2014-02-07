@@ -1255,7 +1255,34 @@ Make a manager triangle with Slurm on it. For the sake of simplicity manager nod
     flock2 out 1 centos
     flock2 out 1 debian wheezy Debian_64 2
 
-    flock2 bootstrap /test
-    flock2 ping @@test
+Group these two machines together in the group `test`. Create the following inventory:
 
+    $ cat inventory/test.ansible 
+    [test]
+    centos-01 ansible_ssh_host=10.1.1.1
+    debian-02 ansible_ssh_host=10.1.1.2
+
+Start install servers (in two separate terminals):
+
+    flock2 boot
+    flock2 http
+
+Start the install process (@ is for headless mode). Note that the install process uses VBox and not the inventory to determine the group!
+
+    flock2 start /@test
+    flock2 reboot /test
+
+Stop the install servers and reboot the group:
+
+    vbox cycle /test
+    flock2 on test
+
+Bootstrap the group (SSH uses paramiko transport). The bootstrap process installs the `sysop` user and its SSH key. The default transport is SSH. If you have a key it is added to the SSH agent.
+
+    flock2 bootstrap /test
+
+Test the `sysop` user, machine access and secure the installation:
+
+    flock2 ping @@test
     flock2 play @@test secure
+    flock2 reboot @@test
