@@ -15,6 +15,7 @@ space/boot/leases
 space/boot/centos63/*
 space/boot/centos64/*
 space/boot/centos65/*
+space/boot/centos65-i386/*
 space/boot/cirros/*
 space/boot/tiny/*
 space/boot/kali/*

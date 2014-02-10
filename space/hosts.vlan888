@@ -1,0 +1,7 @@
+# inventory for space jockey
+
+boot_server=10.11.11.1
+dhcp_range="10.11.11.100,10.11.11.128,255.255.255.0,6h"
+# gateway=192.168.1.1
+# ntp_server=148.6.0.1
+interface=vlan1

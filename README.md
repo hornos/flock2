@@ -95,6 +95,12 @@ If you need professional stuff use eg. CentOS (mind the trailing slash!):
     rsync -avP rsync.hrz.tu-chemnitz.de::ftp/pub/linux/centos/6.4/os/x86_64/isolinux/ ./centos64
     popd
 
+#### Living in the past
+
+    pushd space/boot
+    rsync -avP rsync.hrz.tu-chemnitz.de::ftp/pub/linux/centos/6.5/os/i386/isolinux/ ./centos65-i386
+    popd
+
 ### CoreOS
 From the [CoreOS PXE howto](http://coreos.com/docs/pxe/):
 
@@ -1286,3 +1292,16 @@ Test the `sysop` user, machine access and secure the installation:
     flock2 ping @@test
     flock2 play @@test secure
     flock2 reboot @@test
+
+## VLAN 888
+Enable PXE Boot on the Eth1 (vlan888) interface and start the boot process:
+
+    $ cat space/hosts.vlan888 
+    # inventory for space jockey
+    boot_server=10.11.11.1
+    dhcp_range="10.11.11.100,10.11.11.128,255.255.255.0,6h"
+    interface=vlan1
+    $ JOCKEY_HOSTS=space/hosts.vlan888 jockey kick centos65-i386 00:0F:1F:6E:EC:08 10.11.11.23 c-03
+    $ JOCKEY_HOSTS=space/hosts.vlan888 jockey http
+    $ telnet 10.11.11.13
+    $ connect video
