@@ -1,0 +1,62 @@
+#
+# https://www.ki.iif.hu/m/DNS/dinamikus
+# http://blog.dastrup.com/?p=52
+
+# --extra-vars='domain=<DOMAIN> server=<SERVER>'
+
+- name: Install packages
+  yum: name={{item}}
+       state=installed
+  with_items:
+    - bind-utils
+  when: ansible_os_family == "RedHat"
+  tags:
+    - packages
+
+- name: Create dnssec directory
+  file: path=/etc/dnssec
+        state=directory
+        owner=root
+        group=root
+        mode=0700
+  tags:
+    - directories
+
+- name: Install dnssec private
+  copy: src=../../../dnssec/{{inventory_hostname}}.private
+        dest=/etc/dnssec/{{inventory_hostname}}.private
+            owner=root
+            group=root
+            mode=0600
+  tags:
+    - keys
+
+- name: Install dnssec key
+  copy: src=../../../dnssec/{{inventory_hostname}}.key
+        dest=/etc/dnssec/{{inventory_hostname}}.key
+            owner=root
+            group=root
+            mode=0600
+  tags:
+    - keys
+
+- name: Install custom network scripts
+  template: src={{item}}.j2
+            dest=/sbin/{{item}}
+            owner=root
+            group=root
+            mode=0755
+  with_items:
+    - ifup-local
+    - ifdown-local
+  tags:
+    - scripts
+
+- name: Setup eth1
+  template: src=ifup-ddns.sh.j2
+            dest=/etc/sysconfig/network-scripts/ifup-{{paths[interfaces.external]}}.sh
+            owner=root
+            group=root
+            mode=0755
+  tags:
+    - scripts

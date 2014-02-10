@@ -5,6 +5,6 @@
     - group_vars/{{ ansible_os_family }}.yml
   roles:
     - ntp
-    - packages
+    - packages-i386
     # - network
     # - ajenti

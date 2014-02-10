@@ -1,0 +1,46 @@
+#!/bin/bash
+
+IFC={{paths[interfaces.external]}}
+KEYFILE=/etc/dnssec/{{inventory_hostname}}.private
+
+ADDRESS=$(ifconfig ${IFC} | \
+          grep 'inet\ addr' | \
+          awk '{sub(/.*:/,"",$2); print $2}')
+
+TTL=300
+NAME={{inventory_hostname}}.{{domain}}
+SERVER={{server}}
+ZONE={{domain}}
+
+LOG=/var/log/ddns.log
+
+echo "${NAME} @ ${SERVER}" > ${LOG}
+
+if test -z "${NAME}" || \
+   test -z "${ADDRESS}" ; then
+  logger "DDNS update failed"
+  echo "DDNS update failed" >> ${LOG}
+  exit 0
+fi
+
+if ! test -r "${KEYFILE}" ; then
+  logger "DDNS keyfile not found"
+  echo "DDNS keyfile not found" >> ${LOG}
+  exit 0
+fi
+
+echo "
+server ${SERVER}
+zone ${ZONE}
+update delete ${NAME} A
+update add ${NAME} ${TTL} A ${ADDRESS}
+show
+send" | nsupdate -k ${KEYFILE}
+retval=$?
+if test ${retval} -gt 0 ; then
+  logger "DDNS update ERR @ ${SERVER} for ${NAME}"
+  echo "DDNS update ERR" >> ${LOG}
+else
+  logger "DDNS update OK @ ${SERVER} for ${NAME}"
+  echo "DDNS update OK" >> ${LOG}
+fi

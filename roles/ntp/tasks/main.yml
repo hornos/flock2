@@ -1,0 +1,19 @@
+- name: Install NTP
+  yum: name=ntp
+       state=installed
+  when: ansible_os_family == "RedHat"
+  tags:
+    - packages
+
+- name: Install NTP config
+  template: src=ntp.conf.j2
+            dest=/etc/ntp.conf
+            backup=yes
+  notify:
+    - Restart NTP
+  tags:
+    - config
+
+- name: Restart NTP
+  service: name=ntpd
+           state=restarted

@@ -1,0 +1,4 @@
+#!/bin/bash
+if [ -x /etc/sysconfig/network-scripts/ifdown-${1}.sh ]; then
+    exec /etc/sysconfig/network-scripts/ifdown-${1}.sh
+fi
