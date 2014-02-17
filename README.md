@@ -1294,14 +1294,27 @@ Test the `sysop` user, machine access and secure the installation:
     flock2 reboot @@test
 
 ## VLAN 888
-Enable PXE Boot on the Eth1 (vlan888) interface and start the boot process:
+Enable PXE Boot on the Eth1 (vlan888) interface and start the boot process. Exit from Dell DRAC: [,./].
 
     $ cat space/hosts.vlan888 
     # inventory for space jockey
     boot_server=10.11.11.1
     dhcp_range="10.11.11.100,10.11.11.128,255.255.255.0,6h"
     interface=vlan1
+
     $ JOCKEY_HOSTS=space/hosts.vlan888 jockey kick centos65-i386 00:0F:1F:6E:EC:08 10.11.11.23 c-03
     $ JOCKEY_HOSTS=space/hosts.vlan888 jockey http
+    $ JOCKEY_HOSTS=space/hosts.vlan888 jockey boot
     $ telnet 10.11.11.13
     $ connect video
+
+    jockey password <MAC>
+    flock2 play root@@core-04 bootstrap -c paramiko
+
+    flock2 ping @@dells
+    flock2 play @@dells secure
+    flock2 play @@dells ground-i386 --extra-vars=\"domain=<DOMAIN> server=<SERVER>\"
+    flock2 play @@dells newrelic-i386
+
+    flock2 reboot @@dells
+

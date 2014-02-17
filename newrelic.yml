@@ -3,9 +3,6 @@
   vars_files:
     - group_vars/networks.yml
     - group_vars/{{ ansible_os_family }}.yml
+    - vars/keys.yml
   roles:
-    - ntp
-    - packages
-    - dyndns
-    - network
-    # - ajenti
+    - newrelic

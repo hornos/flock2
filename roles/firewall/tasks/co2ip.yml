@@ -1,0 +1,10 @@
+- name: Clone https://github.com/hornos/co2ip
+  git: repo=https://github.com/hornos/co2ip
+       dest=/opt/co2ip
+  tags:
+    - git
+
+- name: Generate database
+  shell: cd /opt/co2ip; ./generate
+  tags:
+    - database

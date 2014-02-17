@@ -1,0 +1,50 @@
+#!/bin/bash
+#
+# ipset boilerplate
+#
+# http://www.ipdeny.com/blog/blocking-country-ip-tables-using-our-data-blocks-and-ipset-utility/
+
+### boilers
+gbn=$(basename $0)
+gbn=${gbn%%.ipset}
+gdn=$(dirname $0)
+save=${gbn}.save
+type=nethash
+mode=${1:-start}
+shift
+source /etc/ipset.d/functions
+
+### args
+countries=${*:-{{ipset.whitelist}}}
+url=""
+database="/opt/co2ip"
+
+pushd ${gdn} > /dev/null
+
+### main
+case ${mode} in
+  start)
+    ipset/start
+
+    echo "Downloading ${gbn} definitions for ${countries}"
+    for co in ${countries} ; do
+      for net in $(cat ${database}/${co}.zone); do
+        ipset -exist -A ${gbn} ${net}
+      done
+    done
+
+    # for net in $(curl --retry 3 -s ${url}/{${countries}}.zone); do
+    #   ipset -exist -A ${gbn} ${net}
+    # done
+
+    ipset/save
+  ;;
+  stop)
+    ipset/stop
+  ;;
+  x)
+    ipset x ${gbn}
+  ;;
+esac
+
+popd > /dev/null

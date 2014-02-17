@@ -6,5 +6,6 @@
   roles:
     - ntp
     - packages-i386
-    # - network
+    - dyndns
+    - network
     # - ajenti

@@ -76,3 +76,6 @@ sysops:
   - 10.1.1.254
   - 10.1.1.253
 
+ipset:
+  whitelist: hu
+
