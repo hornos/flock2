@@ -47,9 +47,8 @@ easy-rsa/*
 xentest
 *.sublime*
 inventory/*
-roles/template/files/*
-roles/template/rpms/*
-roles/template/debs/*
+roles/template/files/rpms/*
+roles/template/files/debs/*
 ansible/roles/*
 parallel-ssh
 vars/*

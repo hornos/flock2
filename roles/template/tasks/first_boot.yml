@@ -1,0 +1,27 @@
+
+### REDHAT
+- name: Install first boot script
+  template: src=first_boot.{{ansible_os_family}}.j2
+            dest=/root/first_boot
+            owner=root
+            group=root
+            mode=0700
+  tags:
+    - scripts
+
+- name: Enable first boot script
+  lineinfile: dest=/etc/rc.d/rc.local
+              regexp='^/root/first_boot'
+              line='/root/first_boot'
+  when: ansible_os_family == "RedHat"
+  tags:
+    - rc
+
+- name: Install first boot flag
+  copy: content="first boot"
+        dest=/.first_boot
+        owner=root
+        group=root
+        mode=0600
+  tags:
+    - flags

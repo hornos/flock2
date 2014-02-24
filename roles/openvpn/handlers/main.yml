@@ -1,0 +1,11 @@
+- name: Restart ipset
+  service: name=ipset
+           state=reloaded
+
+- name: Restart shorewall
+  service: name=shorewall
+           state=restarted
+
+- name: Restart openvpn
+  service: name=openvpn
+           state=restarted

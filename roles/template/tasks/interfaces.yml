@@ -1,0 +1,36 @@
+
+- name: Clean /etc/hosts
+  lineinfile: dest=/etc/hosts
+              regexp='{{inventory_hostname}}'
+              state=absent
+  tags:
+    - hosts
+
+### REDHAT
+- name: Reset eth0
+  template: src=ifcfg-eth0.j2
+            dest=/etc/sysconfig/network-scripts/ifcfg-eth0
+  when: ansible_os_family == "RedHat"
+  tags:
+    - interfaces
+
+- name: Reset eth1
+  template: src=ifcfg-eth1.j2
+            dest=/etc/sysconfig/network-scripts/ifcfg-eth1
+  when: ansible_os_family == "RedHat"
+  tags:
+    - interfaces
+
+- name: Reset multicast
+  file: path=/etc/sysconfig/network-scripts/route-eth0
+        state=absent
+  when: ansible_os_family == "RedHat"
+  tags:
+    - multicast
+
+### COMMON
+- name: Clear persistent rules
+  file: path=/etc/udev/rules.d/70-persistent-net.rules
+        state=absent
+  tags:
+    - udev

@@ -1,0 +1,10 @@
+
+### REDHAT
+- name: Text mode Grub
+  lineinfile: dest=/boot/grub/grub.conf
+              regexp='^(.*)rhgb.*quiet(.*)$'
+              backrefs=yes
+              line='\1\2'
+  when: ansible_os_family == "RedHat"
+  tags:
+    - textgrub

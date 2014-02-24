@@ -1293,6 +1293,44 @@ Test the `sysop` user, machine access and secure the installation:
     flock2 play @@test secure
     flock2 reboot @@test
 
+## Creating CLoud Stack Templates
+Create a CentOS template and group it to `template` in VirtualBox:
+
+    vbox template centos-template 
+
+Create an inventory (.inventory/template.ansible):
+
+    [template]
+    centos-template ansible_ssh_host=10.1.1.10 ansible_connection=paramiko
+
+Bootstrap the machine:
+
+    flock2 kick centos65-template @centos-template 10.1.1.10 centos-template
+
+Start the servers and the machine:
+
+    flock2 http
+    flock2 boot
+    vbox start centos-template
+
+Reboot with disk:
+
+    vbox cycle centos-template with disk
+
+Switch to the template inventory and start cheffing :)
+
+    flock2 on template
+    flock2 secure /template
+    vbox snap centos-template secure
+
+Optionally, at this point you can prepare the template for upload:
+
+    flock2 play @@template template
+    flock2 shutdown @@template
+    vbox snap centos-template template
+
+    vbox upload centos-template <ALLOW>
+
 ## VLAN 888
 Enable PXE Boot on the Eth1 (vlan888) interface and start the boot process. Exit from Dell DRAC: [,./].
 

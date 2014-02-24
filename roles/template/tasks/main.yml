@@ -1,0 +1,4 @@
+- include: interfaces.yml
+- include: grub.yml
+- include: first_boot.yml
+- include: xenguest.yml

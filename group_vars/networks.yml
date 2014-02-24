@@ -78,4 +78,4 @@ sysops:
 
 ipset:
   whitelist: hu
-
+  openvpn: hu

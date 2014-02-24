@@ -1,0 +1,4 @@
+---
+openvpn:
+  ca: 'vpnca'
+  ver: '2.0'

@@ -1,0 +1,6 @@
+# SSH should prevail
+ACCEPT     ext:+whitelist $FW       tcp        22
+{% if is_sys == "true" %}
+# core servers free to go
+ACCEPT     sys:+core      $FW         -         -
+{% endif %}

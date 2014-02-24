@@ -242,9 +242,13 @@ case ${cmd} in
 
   ssh)
     _hosts=$(cat ${inventory} | \
-    grep ^${hosts} | \
-    sed s/${hosts}\ *// | \
-    sed s/\ /\;/)
+    grep ${hosts}| \
+    sed s/${hosts}\ *//)
+
+    #_hosts=$(cat ${inventory} | \
+    #grep ^${hosts} | \
+    #sed s/${hosts}\ *// | \
+    #sed s/\ /\;/)
 
     eval ${_hosts}
     host=$ansible_ssh_host
@@ -258,6 +262,7 @@ case ${cmd} in
     if test -r ${ting} ; then
        cat ${ting} | grep fp
     fi
+    echo "ssh -X ${opts} ${_key} ${user}@${host}"
     ssh -X ${opts} ${_key} ${user}@${host}
     exit $?
     ;;
