@@ -154,6 +154,7 @@ case ${cmd} in
     fi
     command="ansible-playbook"
     command_options="${module} -l ${hosts}"
+    read -p "Press key to continue..."
   ;;
 
   #/* dry-play and ansible playbook
@@ -262,8 +263,40 @@ case ${cmd} in
     if test -r ${ting} ; then
        cat ${ting} | grep fp
     fi
-    echo "ssh -X ${opts} ${_key} ${user}@${host}"
-    ssh -X ${opts} ${_key} ${user}@${host}
+
+    if test -r "./redirects"; then
+      source "./redirects"
+    else
+      redirects="-L 5858:localhost:5858 -L 5555:localhost:5555 -L 28778:localhost:28778"
+    fi
+    echo "ssh -X ${redirects} ${opts} ${_key} ${user}@${host}"
+    ssh -X ${redirects} ${opts} ${_key} ${user}@${host}
+    exit $?
+    ;;
+
+  scmd)
+    _hosts=$(cat ${inventory} | \
+    grep ${hosts}| \
+    sed s/${hosts}\ *//)
+
+    #_hosts=$(cat ${inventory} | \
+    #grep ^${hosts} | \
+    #sed s/${hosts}\ *// | \
+    #sed s/\ /\;/)
+
+    eval ${_hosts}
+    host=$ansible_ssh_host
+    key=keys/${user}
+    _key=""
+    if test -r ${_key} ; then
+      _key="-i ${key}"
+    fi
+    # check Ting fingerprint
+    ting=$HOME/ting/hosts/${hosts}.json
+    if test -r ${ting} ; then
+       cat ${ting} | grep fp
+    fi
+    ssh -X ${_key} ${user}@${host} ${opts}
     exit $?
     ;;
 

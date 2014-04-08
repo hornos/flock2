@@ -46,6 +46,10 @@ function flock2() {
   else
     echo "Not found: ${_inventory}"
   fi
+  local _env=./inventory/${1:-hosts}.env
+  if test -f ${_env} ; then
+    source ${_env}
+  fi
 }
 
 function stack() {

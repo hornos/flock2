@@ -283,6 +283,35 @@ case ${cmd} in
     ${gbn} http ${host}-clone ${allow} ${port}
   ;;
 
+  http-here)
+    allow=${1:-127.0.0.1/32}
+    port=${2:-8080}
+    vmdir=$(PWD)
+
+    # nginx config
+    cat "${gdn}/http" | \
+    awk -v a="${allow}" \
+        -v l="0.0.0.0:${port}" \
+        -v r="${vmdir}" '{
+      gsub("HTTP_LISTEN",l);
+      gsub("HTTP_ALLOW",a);
+      gsub("HTTP_ROOT",r);
+      print}' \
+    > "${vmdir}/http"
+
+    disk=$(basename "${disk}")
+    myip=$(curl -s http://ifconfig.me)
+    chmod -R a+rX "${vmdir}"
+    echo ""
+    echo "http://${myip}:${port}/${disk}"
+    echo ""
+    echo "HTTP server started on ${port}"
+    echo "Press Ctrl+C to exit"
+    ${http_bin} -c "${vmdir}/http"
+    rm -f "${vmdir}/http"
+    exit $?
+  ;;
+
   #/* Start webserver for image upload
   #// The allow string format: ip/mask
   #// http <HOST> <ALLOW> <PORT>
