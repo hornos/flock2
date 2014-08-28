@@ -199,7 +199,7 @@ case ${cmd} in
     ### args
     system=${arg:-local}
     mac=${1}
-    key=${2}
+    key=${2:-./keys/sysop.pub}
 
     if [ -z "${mac}" ] ; then exit 1; fi
     mac=$(vbox/mac ${mac})
@@ -216,12 +216,18 @@ case ${cmd} in
     echo ""
 
     # http://coreos.com/docs/pxe/
+    # https://coreos.com/docs/running-coreos/bare-metal/booting-with-pxe/
     if [ "${cmd}" = "coreos" ] ; then
       key=$(cat ${key})
       cat "${template}" | \
       awk -v s="${key}" -v d=${system} \
       '{gsub("SSHKEY",s); gsub("_DEFAULT",d); print}' \
       > "${ipxe_kickstart}"
+
+      ### os kickstart
+      os_template="${jockey_root}/kickstart.${system}"
+      os_kickstart="${http_root}/${ks}.ks"
+      cat ${os_template} > ${os_kickstart}
     else
       cat "${template}" | \
       awk -v k=${http_kickstart} -v d=${system} -v i=${interface} \

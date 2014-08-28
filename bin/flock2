@@ -241,6 +241,47 @@ case ${cmd} in
     command_options="${hosts} -m ping"
   ;;
 
+  trace)
+    _hosts=$(cat ${inventory} | \
+    grep ${hosts}| \
+    sed s/${hosts}\ *//)
+    eval ${_hosts}
+    host=$ansible_ssh_host
+    traceroute $host
+    exit
+  ;;
+
+  ring)
+    _hosts=$(cat ${inventory} | \
+    grep ${hosts}| \
+    sed s/${hosts}\ *//)
+    eval ${_hosts}
+    host=$ansible_ssh_host
+    ping $host
+    exit
+  ;;
+
+  sconnect)
+    _hosts=$(cat ${inventory} | \
+    grep ${hosts}| \
+    sed s/${hosts}\ *//)
+    eval ${_hosts}
+    host=$ansible_ssh_host
+    openssl s_client -connect ${host}:443
+    exit
+  ;;
+
+
+  stime)
+    _hosts=$(cat ${inventory} | \
+    grep ${hosts}| \
+    sed s/${hosts}\ *//)
+    eval ${_hosts}
+    host=$ansible_ssh_host
+    openssl s_time -connect ${host}:443 -new
+    exit
+  ;;
+
   ssh)
     _hosts=$(cat ${inventory} | \
     grep ${hosts}| \
@@ -272,6 +313,35 @@ case ${cmd} in
     echo "ssh -X ${redirects} ${opts} ${_key} ${user}@${host}"
     ssh -X ${redirects} ${opts} ${_key} ${user}@${host}
     exit $?
+    ;;
+
+  scp)
+    _hosts=$(cat ${inventory} | \
+    grep ${hosts}| \
+    sed s/${hosts}\ *//)
+
+    eval ${_hosts}
+    host=$ansible_ssh_host
+    key=keys/${user}
+    _key=""
+    if test -r ${_key} ; then
+      _key="-i ${key}"
+    fi
+    # check Ting fingerprint
+    ting=$HOME/ting/hosts/${hosts}.json
+    if test -r ${ting} ; then
+       cat ${ting} | grep fp
+    fi
+
+    if test -r "./redirects"; then
+      source "./redirects"
+    else
+      redirects="-L 5858:localhost:5858 -L 5555:localhost:5555 -L 28778:localhost:28778"
+    fi
+    # echo "ssh -X ${redirects} ${opts} ${_key} ${user}@${host}"
+    # echo $_arg2 $*
+    scp ${_key} ${user}@${host}:${_arg2} $*
+    exit $?    
     ;;
 
   scmd)
