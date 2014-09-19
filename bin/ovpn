@@ -11,7 +11,7 @@ ca_dir="./ca"
 ca_ver=2.0
 inventory=${ANSIBLE_HOSTS:-./hosts}
 config=${FLOCK_CONFIG:-./flock.conf}
-openvpn='/usr/local/Cellar/openvpn/2.2.2/sbin/openvpn'
+openvpn='/usr/local/sbin/openvpn'
 
 if [ -r "${config}" ] ; then
   source "${config}"

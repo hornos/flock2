@@ -118,5 +118,5 @@ LABEL oldcoreos
   APPEND initrd=coreos/initrd.gz root=squashfs: state=tmpfs: sshkey="SSHKEY"
 label coreos
   MENU LABEL coreos
-  KERNEL coreos/vmlinuz
-  APPEND initrd=coreos/initrd.gz sshkey="SSHKEY" cloud-config-url=http://KICKSTART
+  KERNEL coreos/coreos_production_pxe.vmlinuz
+  APPEND initrd=coreos/coreos_production_pxe_image.cpio.gz cloud-config-url=http://KICKSTART

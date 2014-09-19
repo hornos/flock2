@@ -1,7 +1,47 @@
 #cloud-config
+hostname: _HOSTNAME
+write_files:
+ - path: /etc/systemd/system/getty@.service.d/noblank.conf
+   permissions: 0644
+   owner: root
+   content: |
+     [Service]
+     TTYReset=no
+     TTYVTDisallocate=no
+ssh_authorized_keys:
+  - _SSHKEY
 coreos:
+  update:
+    reboot-strategy: etcd-lock
   units:
+    - name: format-ephemeral.service
+      command: start
+      content: |
+        [Unit]
+        Description=Formats the ephemeral drive
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        ExecStart=/usr/sbin/wipefs -f /dev/sda
+        ExecStart=/usr/sbin/mkfs.btrfs -f /dev/sda
+    - name: var-lib-docker.mount
+      command: start
+      content: |
+        [Unit]
+        Description=Mount ephemeral to /var/lib/docker
+        Requires=format-ephemeral.service
+        After=format-ephemeral.service
+        Before=docker.service
+        [Mount]
+        What=/dev/sda
+        Where=/var/lib/docker
+        Type=btrfs
     - name: etcd.service
       command: start
     - name: fleet.service
       command: start
+  etcd:
+    name: _HOSTNAME
+    discovery: _TOKEN
+  fleet:
+    metadata: region=hu-core

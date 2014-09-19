@@ -101,21 +101,21 @@ If you need professional stuff use eg. CentOS (mind the trailing slash!):
     rsync -avP rsync.hrz.tu-chemnitz.de::ftp/pub/linux/centos/6.5/os/i386/isolinux/ ./centos65-i386
     popd
 
-### Old CoreOS
-From the [CoreOS PXE howto](http://coreos.com/docs/pxe/):
-
-    mkdir space/boot/coreos
-    pushd space/boot/coreos
-    curl http://storage.core-os.net/coreos/amd64-generic/72.0.0/coreos_production_pxe.vmlinuz > vmlinuz
-    curl http://storage.core-os.net/coreos/amd64-generic/72.0.0/coreos_production_pxe_image.cpio.gz > initrd.gz
-
 ### CoreOS
 From the [CoreOS PXE howto](https://coreos.com/docs/running-coreos/bare-metal/booting-with-pxe/)
 
-    mkdir space/boot/coreos
-    pushd space/boot/coreos
-    wget http://stable.release.core-os.net/amd64-usr/current/coreos_production_pxe.vmlinuz > vmlinuz
-    wget http://stable.release.core-os.net/amd64-usr/current/coreos_production_pxe_image.cpio.gz > initrd.gz
+    cd space
+    ./download_coreos.sh
+
+Create and init the cluster directory:
+
+    cd
+    mkdir -p coreos/keys coreos/inventory
+    cd coreos
+    ssh-keygen -f keys/sysop
+    curl https://discovery.etcd.io/new > keys/token
+    vbox create coreos-01
+    jockey coreos @coreos-01
 
 ### Prepare Bootp Server
 Space Jockey (`jockey`) is a simple Cobbler replacement. You need an *inventory* (`space/hosts`) file with the bootp/dhcp parameters:
@@ -875,7 +875,7 @@ TODO:
 * Kernel 3.10 full nohz cpuset scheduler numa shit ptp
 * error: /usr/sbin/nhc: exited with status 0x0100
 
-#### CoreOS
+#### CoreOS with Warewulf
 Download CoreOS:
 
     TFTROOT=/ww/common/tftpboot/warewulf

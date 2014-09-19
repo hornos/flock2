@@ -1,7 +1,7 @@
 #!/bin/bash
 source $(dirname $0)/../lib/header
 import pass
-import vbox
+import vb
 
 ### defaults
 jockey_root="${gdn}/../space"
@@ -68,6 +68,14 @@ function vbox/mac() {
     sed 's/\(.\{2\}\)/&-/g;s/-$//')
   fi
   echo "${_mac}"
+}
+
+function vbox/hostname() {
+  if [ "${1:0:1}" = "@" ] ; then
+    echo "${1:1}"
+  else
+    echo "${1}"
+  fi
 }
 
 ### args
@@ -193,41 +201,60 @@ case ${cmd} in
 
   #/* Kickstart a VM with the following parameters
   #// <KEY> is for CoreOS SSH pubkey
-  #// ipxe|coreos <SYS> <MAC> <KEY>
+  #// ipxe|coreos <SYS> <MAC>
   #//                   @<HOST>
+  # jockey coreos @coreos token
+  #        cmd    arg     1       2
+
   ipxe|coreos)
     ### args
-    system=${arg:-local}
-    mac=${1}
+    system=${cmd:-local}
+    mac=${arg}
+    token=${1:-./keys/token}
     key=${2:-./keys/sysop.pub}
 
     if [ -z "${mac}" ] ; then exit 1; fi
-    mac=$(vbox/mac ${mac})
-    ks=$(echo "${mac}" | sed s/:/-/g | tr '[:upper:]' '[:lower:]')
+    _mac=$(vbox/mac ${mac})
+    _hostname=$(vbox/hostname ${arg})
+    ks=$(echo "${_mac}" | sed s/:/-/g | tr '[:upper:]' '[:lower:]')
 
     ### pxelinux
     http_kickstart="${http_listen}/${ks}.ks"
     ipxe_kickstart="${ipxe_root}/01-${ks}"
     template="${jockey_root}/boot/kickstart"
 
-    echo ""
-    echo "Kickstart: ${system}"
-    echo "Mac: ${mac}"
-    echo ""
-
     # http://coreos.com/docs/pxe/
     # https://coreos.com/docs/running-coreos/bare-metal/booting-with-pxe/
     if [ "${cmd}" = "coreos" ] ; then
-      key=$(cat ${key})
-      cat "${template}" | \
-      awk -v s="${key}" -v d=${system} \
-      '{gsub("SSHKEY",s); gsub("_DEFAULT",d); print}' \
-      > "${ipxe_kickstart}"
+      # key=$(cat ${key})
+      # cat "${template}" | \
+      # awk -v s="${key}" -v d=${system} \
+      # '{gsub("SSHKEY",s); gsub("_DEFAULT",d); print}' \
+      # > "${ipxe_kickstart}"
 
+      _key=$(cat ${key})
+      _token=$(cat ${token})
       ### os kickstart
       os_template="${jockey_root}/kickstart.${system}"
       os_kickstart="${http_root}/${ks}.ks"
-      cat ${os_template} > ${os_kickstart}
+
+      echo ""
+      echo " OS Kick: ${os_kickstart}"
+      echo "PXE Kick: ${ipxe_kickstart}"
+      echo "    Host: ${_hostname}"
+      echo "     Mac: ${_mac}"
+      echo "   Token: ${_token}"
+      echo ""
+
+      cat "${template}" | \
+      awk -v k=${http_kickstart} -v d=${system} \
+      '{gsub("KICKSTART",k); gsub("_DEFAULT",d); print}' \
+      > "${ipxe_kickstart}"
+
+      cat ${os_template} | \
+      awk -v s="${_key}" -v h="${_hostname}" -v t="${_token}" \
+      '{gsub("_SSHKEY",s); gsub("_HOSTNAME",h); gsub("_TOKEN",t); print}' \
+      > ${os_kickstart}
     else
       cat "${template}" | \
       awk -v k=${http_kickstart} -v d=${system} -v i=${interface} \
