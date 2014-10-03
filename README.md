@@ -1318,40 +1318,40 @@ Test the `sysop` user, machine access and secure the installation:
 ## Creating Cloud Stack Templates
 Create a CentOS template and group it to `template` in VirtualBox:
 
-    vbox template centos-template 
+    vbox template centos65-template 
 
-Create an inventory (.inventory/template.ansible):
+Create an inventory (.inventory/templates.ansible):
 
-    [template]
-    centos-template ansible_ssh_host=10.1.1.10 ansible_connection=paramiko
+    [templates]
+    centos65-template ansible_ssh_host=10.1.1.10 ansible_connection=paramiko
 
 Bootstrap the machine:
 
-    flock2 kick centos65-template @centos-template 10.1.1.10 centos-template
+    flock2 kick centos65-template @centos65-template 10.1.1.10 centos65-template
 
 Start the servers and the machine:
 
     flock2 http
     flock2 boot
-    vbox start centos-template
+    vbox start centos65-template
 
 Reboot with disk:
 
-    vbox cycle centos-template with disk
+    vbox cycle centos65-template with disk
 
-Switch to the template inventory and start cheffing :)
+Switch to the template inventory and start cheffing :) You might have to clean SSH `known_hosts`!
 
-    flock2 on template
-    flock2 secure /template
-    vbox snap centos-template secure
+    flock2 on templates
+    flock2 secure centos65-template
+    vbox snap centos65-template secure
 
 Optionally, at this point you can prepare the template for upload:
 
-    flock2 play @@template template
-    flock2 shutdown @@template
-    vbox snap centos-template template
+    flock2 play @@centos65-template template
+    flock2 shutdown @@centos65-template
+    vbox snap centos65-template template
 
-    vbox upload centos-template <ALLOW>
+    vbox upload centos65-template <ALLOW>
 
 ## VLAN 888
 Enable PXE Boot on the Eth1 (vlan888) interface and start the boot process. Exit from Dell DRAC: [,./].
