@@ -12,22 +12,18 @@ LABEL memtest
 LABEL detect
 	KERNEL hdt.c32
 	APPEND modules=hdt/modules.pcimap pciids=hdt/pci.ids memtest=memtest
-LABEL centos63
-	MENU LABEL centos63
-	KERNEL centos63/vmlinuz
-	APPEND initrd=centos63/initrd.img ksdevice=eth0 method=cdrom ks=http://KICKSTART
-LABEL centos64
-	MENU LABEL centos64
-	KERNEL centos64/vmlinuz
-	APPEND initrd=centos64/initrd.img ksdevice=eth0 method=cdrom ks=http://KICKSTART
-LABEL centos64-template
-	MENU LABEL centos64
-	KERNEL centos64/vmlinuz
-	APPEND initrd=centos64/initrd.img ksdevice=eth0 method=cdrom ks=http://KICKSTART
 LABEL centos65
 	MENU LABEL centos65
 	KERNEL centos65/vmlinuz
 	APPEND initrd=centos65/initrd.img ksdevice=eth0 method=cdrom ks=http://KICKSTART
+LABEL centos66
+	MENU LABEL centos66
+	KERNEL centos66/vmlinuz
+	APPEND initrd=centos66/initrd.img ksdevice=eth0 method=cdrom ks=http://KICKSTART
+LABEL centos7
+	MENU LABEL centos7
+	KERNEL centos7/vmlinuz
+	APPEND initrd=centos7/initrd.img ksdevice=bootif ks=http://KICKSTART
 LABEL centos65-template
 	MENU LABEL centos65-template
 	KERNEL centos65/vmlinuz

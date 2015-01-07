@@ -92,7 +92,7 @@ Download install images eg. for Debian (mind the trailing slash!):
 If you need professional stuff use eg. CentOS (mind the trailing slash!):
 
     pushd space/boot
-    rsync -avP rsync.hrz.tu-chemnitz.de::ftp/pub/linux/centos/6.4/os/x86_64/isolinux/ ./centos64
+    rsync -avP rsync.hrz.tu-chemnitz.de::ftp/pub/linux/centos/<VER>/os/x86_64/isolinux/ ./centos<VER>
     popd
 
 #### Living in the past
@@ -146,9 +146,9 @@ The following network topology is used in the VirtualBox environment. You have t
 
 Create 3 VMs (aka triangle):
 
-    flock2 out 3 core centos64
+    flock2 out 3 core centos7
 
-Start the boot servers on your OS X host:
+Start the boot servers on your OS X host in 2 terminals (mind that at the very first VB start you have to start and stop one server manually to have haost vboxnet0 ip initialized):
 
     flock2 http
     flock2 boot

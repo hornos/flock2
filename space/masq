@@ -138,6 +138,9 @@ dhcp-range=DHCP_RANGE
 #ROUTER
 
 #DNS
+no-resolv
+server=8.8.4.4
+server=8.8.8.8
 
 # Set the "all subnets are local" flag
 dhcp-option=27,1

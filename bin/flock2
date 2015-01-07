@@ -95,19 +95,19 @@ case ${cmd} in
   init)
     echo ""
     read -p "Do you want to initialize flock?"
-    
+
     # keys
     if [ ! -d ./keys ]; then
       mkdir ./keys
     else
       echo "Keys directory OK"
     fi
-    
+
     # PXE
     if [ ! -d ./space/boot/pxelinux.cfg ]; then
       mkdir -p ./space/boot/pxelinux.cfg
     else
-      echo "PXE directory OK"   
+      echo "PXE directory OK"
     fi
 
     if [ ! -f ./keys/sysop ] ; then
@@ -115,7 +115,7 @@ case ${cmd} in
       echo "Generating System Operator key (sysop)"
       ssh-keygen -b2048 -f ./keys/sysop
     else
-      echo "Sysop SSH key OK" 
+      echo "Sysop SSH key OK"
     fi
 
     if [ ! -f ./keys/sysop ] ; then
@@ -124,8 +124,8 @@ case ${cmd} in
       ssh-keygen -b2048 -N "" -f ./keys/nopass
       echo ""
     else
-      echo "Nopass SSH key OK" 
-    fi 
+      echo "Nopass SSH key OK"
+    fi
 
     exit 0
   ;;
@@ -230,7 +230,7 @@ case ${cmd} in
     command="ansible"
     command_options="${hosts} -m command -a \"cat /var/log/boot.log\""
   ;;
-  
+
   update)
     command="ansible"
     command_options="${hosts} -m command -a \"yum -y update\""
@@ -308,7 +308,7 @@ case ${cmd} in
     if test -r "./redirects"; then
       source "./redirects"
     else
-      redirects="-L 5858:localhost:5858 -L 5555:localhost:5555 -L 28778:localhost:28778 -L 27117:localhost:27017"
+      redirects=""
     fi
     echo "ssh -X ${redirects} ${opts} ${_key} ${user}@${host}"
     ssh -X ${redirects} ${opts} ${_key} ${user}@${host}
@@ -430,8 +430,12 @@ case ${cmd} in
     # args
     no=${_arg1:-3}
     name=${_arg2:-core}
+
+    if ! test -d "./inventory"; then
+      mkdir -p "./inventory"
+    fi
     inventory="./inventory/${name}.ansible"
-    type=${1:-centos65}
+    type=${1:-centos66}
     shift
     os=${1:-RedHat_64}
     shift

@@ -5,9 +5,8 @@ install
 # reboot
 # cdrom
 # remote install
-# url --url http://HTTP_LISTEN/centos65/repo
 
-url --url http://mirrors.sonic.net/centos/6.5/os/x86_64
+url --url http://mirrors.sonic.net/centos/6.6/os/x86_64
 
 skipx
 text
