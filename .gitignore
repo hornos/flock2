@@ -25,6 +25,7 @@ space/boot/esxi/*
 space/boot/xenserver/*
 space/boot/xcp/*
 space/boot/xs62/*
+space/boot/xs65/*
 space/boot/oldcoreos/*
 space/boot/coreos/*
 space/boot/pxelinux.cfg/*

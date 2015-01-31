@@ -52,6 +52,14 @@ LABEL xs62
 	MENU LABEL xs62
 	KERNEL mboot.c32
 	APPEND xs62/repo/boot/xen.gz dom0_max_vcpus=2 dom0_mem=752M com1=115200,8n1 console=com1,vga --- xs62/repo/boot/vmlinuz xencons=hvc console=hvc0 console=tty0 answerfile=http://KICKSTART install --- xs62/repo/install.img
+LABEL xs65
+	MENU LABEL xs65
+	KERNEL mboot.c32
+	APPEND xs65/repo/boot/xen.gz dom0_max_vcpus=2 dom0_mem=752M com1=115200,8n1 console=com1,vga --- xs65/repo/boot/vmlinuz xencons=hvc console=hvc0 console=tty0 answerfile=http://KICKSTART install --- xs65/repo/install.img
+LABEL xs65m
+	MENU LABEL xs65m
+	KERNEL mboot.c32
+	APPEND xs65/repo/boot/xen.gz dom0_max_vcpus=2 dom0_mem=752M com1=115200,8n1 console=com1,vga --- xs65/repo/boot/vmlinuz xencons=hvc console=hvc0 console=tty0 install --- xs65/repo/install.img
 LABEL cirros
 	MENU LABEL cirros
 	KERNEL cirros/vmlinuz

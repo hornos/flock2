@@ -1,0 +1,8 @@
+# inventory for space jockey
+
+boot_server=192.168.70.1
+dhcp_range="192.168.70.2,192.168.70.16,255.255.255.0,6h"
+gateway=192.168.70.1
+ntp_server=148.6.0.1
+interface=en5
+
