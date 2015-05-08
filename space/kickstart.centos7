@@ -8,10 +8,10 @@ install
 # remote install
 # url --url http://HTTP_LISTEN/centos65/repo
 
-# url --url http://ftp.freepark.org/pub/linux/distributions/centos/7/os/x86_64
-url --url http://mirrors.sonic.net/centos/7/os/x86_64
+url --url http://ftp.freepark.org/pub/linux/distributions/centos/7/os/x86_64
+# url --url http://mirrors.sonic.net/centos/7/os/x86_64
 
-# skipx
+# skipx
 # text
 
 graphical
@@ -74,10 +74,12 @@ logvol /              --name=root  --vgname=vg_root --fstype=ext4 --size=20000
 # network --onboot=yes --bootproto=dhcp --device=eth3
 
 # simple
+# https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/Deployment_Guide/appe-Consistent_Network_Device_Naming.html
 network --onboot=yes --bootproto=static --ip=SYSTEM_ADDR --netmask=255.255.0.0 --device=eth0 --activate
 network --onboot=yes --bootproto=dhcp --device=eth1 --activate
 
-firewall --enabled --port=22:tcp
+firewall --enable --ssh --trust=eth0
+# firewall --enabled --port=22:tcp
 # firewall --enabled --port=22:tcp --port=222:tcp --port=80:tcp --port=21:tcp --port=25:tcp --port=500:udp --port=:esp --port=:ah
 
 ### PACKAGES
@@ -89,7 +91,7 @@ wget
 net-tools
 chrony
 mc
-# openssh-server
+openssh-server
 
 ### EAL4 required packages
 # audit

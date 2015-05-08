@@ -62,7 +62,7 @@ EOF
     shift
     days=${1:-365}
     shift
-    email=${1:sysop@localhost}
+    email=${1:-sysop@localhost}
 
     ca/init
  

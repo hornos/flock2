@@ -200,6 +200,60 @@ case ${cmd} in
   ;;
 
   #/* Kickstart a VM with the following parameters
+  #// pfsense <MAC>
+  #//         @<HOST>
+  # jockey pfsense @coreos token
+  #        cmd    arg     1       2
+
+  pfsense)
+    ### args
+    system=${cmd:-local}
+    mac=${arg}
+    token=${1:-./keys/token}
+    key=${2:-./keys/sysop.pub}
+
+    if [ -z "${mac}" ] ; then exit 1; fi
+    _mac=$(vbox/mac ${mac})
+    _hostname=$(vbox/hostname ${arg})
+    ks=$(echo "${_mac}" | sed s/:/-/g | tr '[:upper:]' '[:lower:]')
+
+    ### pxelinux
+    http_kickstart="${http_listen}/${ks}.ks"
+    ipxe_kickstart="${ipxe_root}"
+    template="${jockey_root}/boot/kickstart"
+
+    # key=$(cat ${key})
+    # cat "${template}" | \
+    # awk -v s="${key}" -v d=${system} \
+    # '{gsub("SSHKEY",s); gsub("_DEFAULT",d); print}' \
+    # > "${ipxe_kickstart}"
+
+    _key=$(cat ${key})
+    _token=$(cat ${token})
+    ### os kickstart
+    os_template="${jockey_root}/kickstart.${system}"
+    os_kickstart="${http_root}/${ks}.ks"
+
+    echo ""
+    echo " OS Kick: ${os_kickstart}"
+    echo "PXE Kick: ${ipxe_kickstart}"
+    echo "    Host: ${_hostname}"
+    echo "     Mac: ${_mac}"
+    echo "   Token: ${_token}"
+    echo ""
+
+    cat "${template}" | \
+    awk -v k=${http_kickstart} -v d=${system} \
+    '{gsub("KICKSTART",k); gsub("_DEFAULT",d); print}' \
+    > "${ipxe_kickstart}"
+
+    # cat ${os_template} | \
+    # awk -v s="${_key}" -v h="${_hostname}" -v t="${_token}" \
+    # '{gsub("_SSHKEY",s); gsub("_HOSTNAME",h); gsub("_TOKEN",t); print}' \
+    # > ${os_kickstart}
+  ;;
+
+  #/* Kickstart a VM with the following parameters
   #// <KEY> is for CoreOS SSH pubkey
   #// ipxe|coreos <SYS> <MAC>
   #//                   @<HOST>

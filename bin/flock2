@@ -284,6 +284,7 @@ case ${cmd} in
 
   ssh)
     _hosts=$(cat ${inventory} | \
+    grep -v '^;' | \
     grep ${hosts}| \
     sed s/${hosts}\ *//)
 
@@ -317,6 +318,7 @@ case ${cmd} in
 
   msh)
     _hosts=$(cat ${inventory} | \
+    grep -v '^;' | \
     grep ${hosts}| \
     sed s/${hosts}\ *//)
 
