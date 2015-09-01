@@ -295,6 +295,7 @@ case ${cmd} in
 
     eval ${_hosts}
     host=$ansible_ssh_host
+    port=${ansible_ssh_port:-22}
     key=keys/${user}
     _key=""
     if test -r ${_key} ; then
@@ -311,8 +312,8 @@ case ${cmd} in
     else
       redirects=""
     fi
-    echo "ssh -X ${redirects} ${opts} ${_key} ${user}@${host}"
-    ssh -X ${redirects} ${opts} ${_key} ${user}@${host}
+    echo "ssh -X ${redirects} -p ${port} ${opts} ${_key} ${user}@${host}"
+    ssh -X ${redirects} -p ${port} ${opts} ${_key} ${user}@${host}
     exit $?
     ;;
 
@@ -329,6 +330,9 @@ case ${cmd} in
 
     eval ${_hosts}
     host=$ansible_ssh_host
+    port=${ansible_ssh_port:-22}
+    # mosh_port="60${port}"
+    mosh_port=${ansible_msh_port:-60${port}}
     key=keys/${user}
     _key=""
     if test -r ${_key} ; then
@@ -346,8 +350,8 @@ case ${cmd} in
       redirects="-L 5858:localhost:5858 -L 5555:localhost:5555 -L 28778:localhost:28778 -L 27117:localhsot:27017"
     fi
     # echo "ssh -X ${redirects} ${opts} ${_key} ${user}@${host}"
-    echo mosh --server=/usr/bin/mosh-server --ssh="ssh -X ${redirects} ${opts} ${_key}" ${user}@${host}
-    mosh --server=/usr/bin/mosh-server --ssh="ssh -X ${redirects} ${opts} ${_key}" ${user}@${host}
+    echo mosh -p ${mosh_port} --server=/usr/bin/mosh-server --ssh="ssh -p ${port} ${opts} ${_key}" ${user}@${host}
+    mosh -p ${mosh_port} --server=/usr/bin/mosh-server --ssh="ssh -p ${port} ${opts} ${_key}" ${user}@${host}
     exit $?
     ;;
 
