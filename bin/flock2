@@ -25,10 +25,12 @@ _args=$*
 
 hosts=${1:-root}
 _arg1=${hosts}
+_args1=$*
 shift
 
 module=${1:-ping}
 _arg2=${module}
+_args2=$*
 shift
 opts=$*
 
@@ -312,8 +314,41 @@ case ${cmd} in
     else
       redirects=""
     fi
+    # echo $_args1
+    # echo $_args2
+
     echo "ssh -X ${redirects} -p ${port} ${opts} ${_key} ${user}@${host}"
     ssh -X ${redirects} -p ${port} ${opts} ${_key} ${user}@${host}
+    exit $?
+    ;;
+
+  scmd)
+    _hosts=$(cat ${inventory} | \
+    grep -v '^;' | \
+    grep ${hosts}| \
+    sed s/${hosts}\ *//)
+
+    #_hosts=$(cat ${inventory} | \
+    #grep ^${hosts} | \
+    #sed s/${hosts}\ *// | \
+    #sed s/\ /\;/)
+
+    eval ${_hosts}
+    host=$ansible_ssh_host
+    port=${ansible_ssh_port:-22}
+    key=keys/${user}
+    _key=""
+    if test -r ${_key} ; then
+      _key="-i ${key}"
+    fi
+    # check Ting fingerprint
+    ting=$HOME/ting/hosts/${hosts}.json
+    if test -r ${ting} ; then
+       cat ${ting} | grep fp
+    fi
+
+    echo "ssh -tt -p ${port} ${_key} ${user}@${host} ${_args2}"
+    ssh -tt -p ${port} ${_key} ${user}@${host} ${_args2}
     exit $?
     ;;
 
