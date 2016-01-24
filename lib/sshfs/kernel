@@ -1,0 +1,102 @@
+
+function ssh/mnt/ls() {
+  printf "%-32s %s\n" "Local directory" "Remote url"
+  mount | egrep 'osxfusefs|fusefs|fuse.sshfs|fuse4x' | \
+          egrep -v 'encfs|fuse.encfs' | \
+          egrep -v 'TrueCrypt' | \
+          egrep ${USER} | \
+          awk -v h=${HOME} '{
+            sub(h,"$HOME",$3);
+            printf "%-32s %s\n",$3,$1
+          }'
+  return ${_true_}
+}
+
+function sshfs/isMounted() {
+  mount | egrep 'osxfusefs|fusefs|fuse.sshfs|fuse4x' | \
+          egrep -v 'encfs|fuse.encfs' | \
+          egrep -v 'TrueCrypt' | \
+          egrep ${USER} | \
+          awk -v h=${HOME} '{
+            sub(h,"$HOME",$3);
+            printf "%-32s %s\n",$3,$1
+          }' | grep $1 &> /dev/null
+}
+
+
+function sshfs/mount() {
+  local _user=$1
+  shift
+  local _host=$1
+  shift
+  local _key=$1
+
+  # mount check
+  sshfs/isMounted ${_host}
+  local _ret=$?
+  if test ${_ret} -eq 0; then
+    echo "${_host} is already mounted"
+    return
+  fi
+
+  # create mount directory
+  local _mnt="${PWD}/mnt/${_host}"
+  if ! test -d "${_mnt}"; then
+    mkdir -p "${_mnt}"
+  fi
+
+  local _dest="${_user}@${_host}:/"
+  local _opts="-o IdentityFile=${_key}"
+
+  # https://code.google.com/p/macfuse/wiki/OPTIONS
+  echo $OSTYPE | grep darwin &> /dev/null
+  _ret=$?
+  if test ${_ret} -eq 0; then
+    local _vol="sshfs/${_host}"
+    _opts="${_opts} -o volname=${_vol} -o fsname=${_vol}"
+    local _ico="$HOME/flock2/img/sshfs.icns"
+    if test -r "${_ico}" ; then
+      _opts="${_opts} -o modules=volicon -o iconpath=${_ico}"
+    fi
+  fi
+  # local _cmd="${ssh_mnt_mnt} ${_dest} \"${_mnt}\" ${_opts}"
+  # echo $_cmd
+  ${ssh_mnt_mnt} ${_dest} ${_mnt} ${_opts}
+  _ret=$?
+  if test ${_ret} -eq 0 ; then
+    echo "${_host} mounted"
+  fi
+
+  return ${_ret}
+}
+
+function sshfs/umount() {
+  local _user=$1
+  shift
+  local _host=$1
+  shift
+  local _key=$1
+
+  # mount check
+  sshfs/isMounted ${_host}
+  local _ret=$?
+  if ! test ${_ret} -eq 0; then
+    echo "${_host} is not mounted"
+    return
+  fi
+
+  # create mount directory
+  local _mnt="${PWD}/mnt/${_host}"
+  if ! test -d "${_mnt}"; then
+    mkdir -p "${_mnt}"
+  fi
+
+  # echo "Unmount ${_mnt}"
+  ${ssh_mnt_umnt} ${_mnt}
+  _ret=$?
+  if test ${_ret} -eq 0 ; then
+    echo "${_host} unmounted"
+  fi
+
+  return ${_ret}
+}

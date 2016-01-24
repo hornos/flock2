@@ -1,6 +1,7 @@
 #!/bin/bash
 source $(dirname $0)/../lib/header
 import gui
+import sshfs
 
 # TBD: help
 
@@ -416,7 +417,7 @@ case ${cmd} in
     # echo "ssh -X ${redirects} ${opts} ${_key} ${user}@${host}"
     # echo $_arg2 $*
     scp ${_key} ${user}@${host}:${_arg2} $*
-    exit $?    
+    exit $?
     ;;
 
   scmd)
@@ -445,10 +446,28 @@ case ${cmd} in
     exit $?
     ;;
 
+  mount|umount)
+    _hosts=$(cat ${inventory} | \
+    grep ${hosts}| \
+    sed s/${hosts}\ *//)
+    eval ${_hosts}
+    host=$ansible_ssh_host
+    key=keys/${user}
+    _key=""
+    if test -r ${_key} ; then
+      _key="-i ${key}"
+    fi
+    # echo "mount $host $key $user"
+    # exit $?
+    sshfs/$cmd $user $host $key
+    exit $?
+    ;;
+
   http|boot|masq)
     jockey $cmd
     exit $?
     ;;
+
   provision)
     # TBD auto kill trap
     xterm -geometry 182x47 -e provision
@@ -569,4 +588,3 @@ echo ""
 echo "Running: $command $command_options $options ${_opts} $opts"
 echo ""
 eval "$command $command_options $options ${_opts} $opts"
-
